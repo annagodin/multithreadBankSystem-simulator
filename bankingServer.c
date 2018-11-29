@@ -74,7 +74,7 @@ void func(int sockfd)
 	token = strtok(buff, tab);
 	token = strtok(NULL, "	\n");
 	//test after: token = strtok(NULL, tab);
-
+	printf("token: %s\n", token);
 
 	//if msg contains "create" then server will create an account
 	if (strncmp("create", buff, 6) == 0){
@@ -83,17 +83,18 @@ void func(int sockfd)
 		//ERR check: if account already created
 		//if <accountname> input = acct_name 
 		for(i = 0; i < numAccounts; i++){
+			//struct *temp = bankAccounts;
 			if(numAccounts == 0)
 				printf("will create a NEW account!\n");
 			
-			if(strcmp(token, bankAccounts[i]->accountname) == 0){
+			if(numAccounts != 0 && (strcmp(token, bankAccounts[i].accountname) == 0)){
 				printf("error, this account exists!\n");
 				return;
 			}else{
 				printf("create NEW account!!\n");
 			}
 		}
-	//need to debug in the morning, im falling asleep haha
+	
 	} 
 	
 	
@@ -101,10 +102,7 @@ void func(int sockfd)
 	if (strncmp("exit", buff, 4) == 0) { 
             printf("Server Exit...\n"); 
             break; 
-        }else{
-		printf("not valid command!!!! \n");
-		exit(-1)	//for test purposes lol;
-	} 
+        } 
     } 
 } 
 

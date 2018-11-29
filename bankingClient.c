@@ -17,11 +17,12 @@
 #define MAX 80 
 #define SA struct sockaddr
 
-
+int sockfd;
 
 
 void func(int sockfd) 
 { 
+    int valid = 0; //bool valid input flag
     char buff[MAX]; 
     int n; 
     for (;;) { 
@@ -31,7 +32,63 @@ void func(int sockfd)
         while ((buff[n++] = getchar()) != '\n') 
             ; 
         write(sockfd, buff, sizeof(buff)); 
-        bzero(buff, sizeof(buff)); 
+        
+	
+	if(strncmp("create", buff, 6) == 0){
+		printf("valid input\n");
+		valid = 1;
+	}
+
+	if(strncmp("serve",buff, 5) == 0){
+		printf("valid input\n");
+		//puts client in service mode
+		valid = 1;
+	}
+
+	if (strncmp("deposit", buff, 7) == 0){
+		//server should only accept cmd if in service mode
+		printf("valid input\n");
+		valid = 1;
+	}
+
+	if (strncmp("withdraw", buff, 8) == 0){
+		//server should only accept cmd if in service mode
+		printf("valid input\n");
+		valid = 1;
+	}
+
+	if(strncmp("query", buff, 5) == 0){
+		//server should only accept cmd if in service mode
+		printf("valid input\n");
+		valid = 1;
+	}
+
+	if(strncmp("end", buff, 3) == 0){
+		//closes account session
+		printf("valid input\n");
+		valid = 1;
+			exit(-1);
+	}
+
+	if(strncmp("quit", buff, 4) == 0){
+		//disconnects client from server
+		//pthread_exit
+		//free()
+		//all that jazz
+
+		printf("valid input\n");
+		valid = 1;
+		exit(-1);
+	}
+
+	if(valid == 0){
+		printf("invalid input\n");
+		
+	}
+
+	
+	
+	bzero(buff, sizeof(buff)); 
         read(sockfd, buff, sizeof(buff)); 
         printf("From Server : %s", buff); 
         if ((strncmp(buff, "exit", 4)) == 0) { 
@@ -44,7 +101,7 @@ void func(int sockfd)
 
 int main() 
 { 
-    int sockfd, connfd; 
+    int connfd; 
     struct sockaddr_in servaddr, cli; 
   
     // socket create and varification
