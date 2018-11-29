@@ -22,14 +22,22 @@ typedef int bool;
 #define false 0
 
 
+int numAccounts = 0; //counter for number accounts created during session
+
 struct account{
 
-    char* acct_name;
+    char* accountname;
     double balance;   
     bool inSession;
 
 };
 
+//struct account *bankAccounts;
+
+//create temp array of structs to hold accounts for that session
+//don't forget to free before disconnecting curr sessions
+//struct account *bankAccounts = (struct account *)malloc(sizeof(struct account));
+struct account bankAccounts[20]; //test bc lazy
 
 /*-------------GEEKS FOR GEEKS EXAMPLE ------------------*/
 
@@ -38,6 +46,7 @@ void func(int sockfd)
 { 
     char buff[MAX]; 
     int n; 
+    int i;
     // infinite loop for chat
 
     for (;;) { 
@@ -56,11 +65,46 @@ void func(int sockfd)
         // and send that buffer to client 
         write(sockfd, buff, sizeof(buff));
 
+
+	//get substring of msg
+	int ret;
+	char *token;
+	char *tab = " ";
+
+	token = strtok(buff, tab);
+	token = strtok(NULL, "	\n");
+	//test after: token = strtok(NULL, tab);
+
+
+	//if msg contains "create" then server will create an account
+	if (strncmp("create", buff, 6) == 0){
+		//handle create account
+		
+		//ERR check: if account already created
+		//if <accountname> input = acct_name 
+		for(i = 0; i < numAccounts; i++){
+			if(numAccounts == 0)
+				printf("will create a NEW account!\n");
+			
+			if(strcmp(token, bankAccounts[i]->accountname) == 0){
+				printf("error, this account exists!\n");
+				return;
+			}else{
+				printf("create NEW account!!\n");
+			}
+		}
+	//need to debug in the morning, im falling asleep haha
+	} 
+	
+	
 	// if msg contains "Exit" then server exit and chat ended.
 	if (strncmp("exit", buff, 4) == 0) { 
             printf("Server Exit...\n"); 
             break; 
-        } 
+        }else{
+		printf("not valid command!!!! \n");
+		exit(-1)	//for test purposes lol;
+	} 
     } 
 } 
 
