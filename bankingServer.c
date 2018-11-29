@@ -15,6 +15,23 @@
 #define PORT 9382
 #define _GNU_SOURCE
 //9382
+typedef int bool;
+#define true 1
+#define false 0
+
+
+struct account{
+
+ string *acct_name;
+ double balance;
+ bool inSession; 
+
+};
+
+
+
+
+
 
 int main(int argc, char *argv[]) {
 	printf("this is the banking server\n");
