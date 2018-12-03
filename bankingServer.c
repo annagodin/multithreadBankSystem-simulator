@@ -10,11 +10,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <pthread.h>
+#include <pthread.h> 
 #include <netinet/in.h>
 #define PORT 9382
 #define _GNU_SOURCE
-#define MAX 80
+#define MAX 300
 #define SA struct sockaddr
 //9382
 typedef int bool;
@@ -42,8 +42,7 @@ struct account bankAccounts[20]; //test bc lazy
 /*-------------GEEKS FOR GEEKS EXAMPLE ------------------*/
 
 //Function designed for chat between client and server
-void func(int sockfd) 
-{ 
+void func(int sockfd){ 
     char buff[MAX]; 
     int n; 
     int i;
@@ -51,58 +50,66 @@ void func(int sockfd)
 
     for (;;) { 
         bzero(buff, MAX); 
-  
+
         // read the message from client and copy it in buffer
-	read(sockfd, buff, sizeof(buff)); 
+	    read(sockfd, buff, sizeof(buff)); 
         // print buffer which contains the client contents
         printf("From client: %s\t To client : ", buff); 
         bzero(buff, MAX); 
         n = 0; 
         // copy server message in the buffer 
-        while ((buff[n++] = getchar()) != '\n') 
-            ; 
+        while ((buff[n++] = getchar()) != '\n'); 
   
         // and send that buffer to client 
         write(sockfd, buff, sizeof(buff));
 
 
-	//get substring of msg
-	int ret;
-	char *token;
-	char *tab = " ";
+    	//get substring of msg
 
-	token = strtok(buff, tab);
-	token = strtok(NULL, "	\n");
-	//test after: token = strtok(NULL, tab);
-	printf("token: %s\n", token);
+        char* parse = (char*)malloc(sizeof(char)*(strlen(buff))+2);
+        strcpy(parse,buff);
 
-	//if msg contains "create" then server will create an account
-	if (strncmp("create", buff, 6) == 0){
-		//handle create account
-		
-		//ERR check: if account already created
-		//if <accountname> input = acct_name 
-		for(i = 0; i < numAccounts; i++){
-			//struct *temp = bankAccounts;
-			if(numAccounts == 0)
-				printf("will create a NEW account!\n");
-			
-			if(numAccounts != 0 && (strcmp(token, bankAccounts[i].accountname) == 0)){
-				printf("error, this account exists!\n");
-				return;
-			}else{
-				printf("create NEW account!!\n");
-			}
-		}
-	
-	} 
-	
-	
-	// if msg contains "Exit" then server exit and chat ended.
-	if (strncmp("exit", buff, 4) == 0) { 
+    	int ret;
+    	char *token;
+    	char *tab = " ";
+
+        //ANNA: use strsep!!!!!
+        token = strsep(&parse, ",");
+    	// token = strtok(buff, tab);
+    	// token = strtok(NULL, "	\n");
+    	//test after: token = strtok(NULL, tab);
+    	printf("token: %s\n", token);
+
+    	//if msg contains "create" then server will create an account
+    	if (strncmp("create", buff, 6) == 0){
+    		//handle create account
+    		
+    		//ERR check: if account already created
+    		//if <accountname> input = acct_name 
+    		if(numAccounts == 0)
+                    printf("0: will create a NEW account!\n");
+            else {
+                for(i = 0; i < numAccounts; i++){
+                //struct *temp = bankAccounts;
+                    
+                    if(numAccounts != 0 && (strcmp(token, bankAccounts[i].accountname) == 0)){
+                        printf("error, this account already exists!\n");
+                        return;
+                        //return some message to the client!!
+                    }else{
+                        printf("will create NEW account!!\n");
+                    }
+                }
+            }     
+    	
+    	} 
+    	
+    	// if msg contains "Exit" then server exit and chat ended.
+    	if (strncmp("exit", buff, 4) == 0) { 
             printf("Server Exit...\n"); 
             break; 
         } 
+
     } 
 } 
 
