@@ -32,9 +32,11 @@ struct account
     char accountName[266];
     double balance;   
     int inSessionFlag;
-
+    struct account *next;
 };
-typedef struct account account;
+
+typedef struct account *bankAccount;
+bankAccount head = NULL;
 
 /* making the linked list of bank account structs
 struct bankAccounts
@@ -52,10 +54,96 @@ bankAccounts *accountList = NULL;
 //create temp array of structs to hold accounts for that session
 //don't forget to free before disconnecting curr sessions
 //struct account *bankAccounts = (struct account *)malloc(sizeof(struct account));
-struct account bankAccounts[20]; //test bc lazy
+//struct account bankAccounts[20]; //test bc lazy
+
+
+//account linked list node creation method
+bankAccount createNode(){
+
+	bankAccount temp;
+	temp = (bankAccount)malloc(sizeof(bankAccount));
+	temp->next = NULL;
+	return temp;
+
+}
+
+//add new bank account node to linked list of account structs
+bankAccount addNode(bankAccount head, char* token){
+
+	bankAccount temp, p;
+	temp = createNode();
+
+	memset(temp->accountName, '\0', sizeof(temp->accountName));
+	strcpy(temp->accountName, token);
+
+	temp->balance = 0;
+	temp->inSessionFlag = 0;
+
+	if(head == NULL){
+		head = temp;
+
+	}else{
+
+		p = head;
+		
+		while(p->next != NULL){
+			p = p->next;
+		}
+		p->next = temp;
+	}
+
+	printLL(head);	//test just to print
+	return head;
+
+}
+
+//boolean method to check if account exists already in linked list
+int alreadyExists(char *token){
+
+
+	bankAccount temp;
+	temp = head;
+
+	while(temp != NULL){
+		int result = strcmp(temp->accountName, token);
+		
+		if(result == 0){
+			printf("account name already exists!\n");
+			return 1;
+		}else{
+			
+			temp = temp->next;
+
+		}
+	}
+	printf("account does not exist, continue creation!\n");
+	return 0;	//account not found, continue to create new account
+
+}
+
+//print bankAccount structs as a test
+printLL(bankAccount head){
+
+	bankAccount temp;
+	temp = head;
+
+	while(temp != NULL){
+		printf("Account Name: %s\n Balance: $%d\n inSessionFlag: %ld\n", temp->accountName, temp->balance, temp->inSessionFlag);
+		temp = temp->next;
+	}
+	
+
+
+}
+
+
+
+
+
+
+
 
 /*-------------GEEKS FOR GEEKS EXAMPLE ------------------*/
-
 //Function designed for chat between client and server
 void func(int sockfd){ 
     char buff[MAX]; 
@@ -95,20 +183,24 @@ void func(int sockfd){
     		//if <accountname> input = acct_name 
     		if(numAccounts == 0){
                     printf("0: will create a NEW account!\n");
-        	    createAccount(token);    
+        	    addNode(head,token);    
+		    numAccounts++;
+		    printf("Number of Accounts: %d\n", numAccounts);
+		    printLL(head);
 		}else {
-                	for(i = 0; i < numAccounts; i++){
-                //struct *temp = bankAccounts;
-                    
-                    		if(numAccounts != 0 && (strcmp(token, bankAccounts[i].accountName) == 0)){
-                        		printf("error, this account already exists!\n");
-                        		return;
-                        	//return some message to the client!!
-                    		}else{
-                        		printf("will create NEW account!!\n");
-                    			createAccount(token);
-		    		}
-                	}	
+                
+                    if(alreadyExists(token) == 1)
+                    	{
+                        	printf("error, this account already exists!\n");
+        
+                    	}else{
+                        	printf("will create NEW account!!\n");
+                    		addNode(head, token);
+				printLL(head);
+				numAccounts++;	
+				printf("Number of Accounts: %d\n", numAccounts);
+		    	}
+                	
             	}	     
     	} 
     	// if msg contains "Exit" then server exit and chat ended.
@@ -130,6 +222,8 @@ void func(int sockfd){
 } 
 
 
+
+/*
 //create account function
 void createAccount(char* token){
 
@@ -147,6 +241,8 @@ void createAccount(char* token){
 	 
 	//Attach new account to linked list of structs holding all bank accounts
 	
+	
+	
 	numAccounts++;
 	printf("number of accounts now: %d\n", numAccounts);
 
@@ -155,7 +251,7 @@ void createAccount(char* token){
 
 
 }
-
+*/
 
 
 
