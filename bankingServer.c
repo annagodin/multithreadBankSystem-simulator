@@ -56,7 +56,6 @@ void func(int sockfd){
         // print buffer which contains the client contents
         printf("From client: %s\n", buff); 
          
-
     	//get substring of msg
         char* token = (char*)malloc(sizeof(char)*(strlen(buff))+2);
         strcpy(token,buff);
@@ -95,21 +94,21 @@ void func(int sockfd){
                 }
             }     
     	} 
-    	
     	// if msg contains "Exit" then server exit and chat ended.
     	if (strncmp("exit", cmd, 4) == 0) { 
             printf("Server Exit...\n"); 
             break; 
         } 
 
-        printf("To client:\n");
-         // copy server message in the buffer 
+        printf("Write a message to client: ");
         bzero(buff, MAX); 
         n = 0;
+         // copy server message in the buffer
         while ((buff[n++] = getchar()) != '\n');
+        buff[strlen(buff)]='\0';
         // and send that buffer to client 
         write(sockfd, buff, sizeof(buff));
-        printf("Sent message to client: %s\n",buff);
+        printf("Sent message to client: '%s'\n",buff);
     } 
 } 
 

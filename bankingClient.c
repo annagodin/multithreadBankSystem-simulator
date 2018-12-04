@@ -15,12 +15,46 @@
 #define PORT 9382
 #define _GNU_SOURCE
 #define MAX 500 
-#define SA struct sockaddr
+// #define SA struct sockaddr
+int exitClient = 0;
 
-int sockfd;
+
+void * readFromServer(void* args){
+	char buff[MAX];
+	memset(buff, 0, sizeof(buff));
+	int networkSockFD = *(int*)args;
+	int status;
+	for(;;){
+		status = read(networkSockFD, buff, sizeof(buff));
+		buff[strlen(buff)-1]='\0';
+		if (status>0){
+			printf("\nFrom Server: '%s'\n", buff); 
+	   		memset(buff, 0, sizeof(buff));
+		}
+	    
+	}
 
 
-void func(int sockfd) {
+	// while (status = read(networkSockFD, buff, sizeof(buff))>=0) { 
+	//        printf("From Server: %s\n", buff); 
+	//        memset(buff, 0, sizeof(buff));   
+	//        if (strcmp(buff, "quit")==0){
+	//        		break;
+	//     		exitClient=1;
+ //        	} 
+	// }
+	
+
+	printf("** Closing connection\n");
+    close(networkSockFD);
+    free(args);
+    exit(1);
+    return 0;
+	
+    
+}
+
+void writeToServer(int sockfd) {
 
 	int inSession = 0; 
     int valid = 1; //bool valid input flag
@@ -38,6 +72,7 @@ void func(int sockfd) {
 	        bzero(buff, sizeof(buff)); 
 	        n = 0; 
 	        while ((buff[n++] = getchar()) != '\n'); 
+	        buff[strlen(buff)-1]='\0';
 	        // write(sockfd, buff, sizeof(buff)); 
 	        
 		
@@ -84,38 +119,40 @@ void func(int sockfd) {
 				//free()
 				//all that jazz
 
-				printf("valid input\n");
+				// printf("valid input\n");
 				valid = 1;
-				exit(-1);
-			}
-			else {
+				printf("** Closing connection, exiting client\n");
+				return;
+
+        	} 
+
+        	else {
 				valid = 0;
 				//printf("invalid input\n");
 			}
+
+		
+			
 			// if(valid == 0){
 				
 			// }
 
 			
-			
 		} while (valid==0);
 
 		write(sockfd, buff, sizeof(buff)); 
-
 		bzero(buff, sizeof(buff)); 
-        read(sockfd, buff, sizeof(buff)); 
-        printf("From Server : %s", buff); 
-        if ((strncmp(buff, "exit", 4)) == 0) { 
-            printf("Client Exit...\n"); 
-            break; 
-        } 
-    } 
-}
+		sleep(2);
+	}
+       
+} 
+
 
 
 int main(int argc, char *argv[]) { 
-    int connfd; 
-    struct sockaddr_in servaddr, cli; 
+    int sockfd;
+   // int connfd; 
+   // struct sockaddr_in servaddr, cli; 
   
 //------------ANNAS TRYING NEW THINGS------------------------
     struct addrinfo hints;
@@ -124,8 +161,8 @@ int main(int argc, char *argv[]) {
     size_t len;
     ssize_t nread;
 
-    void *thread_sfd1 = malloc(sizeof(sockfd));
-    void *thread_sfd2 = malloc(sizeof(sockfd));
+    // void *thread_sfd1 = malloc(sizeof(sockfd));
+    // void *thread_sfd2 = malloc(sizeof(sockfd));
 
     if (argc<3){
     	fprintf(stderr, "ERROR: not enough arguments, must specify machine name and port\n");
@@ -157,8 +194,8 @@ int main(int argc, char *argv[]) {
       If socket(2) (or connect(2)) fails, we (close the socket
       and) try the next address. */
 
-    memcpy(thread_sfd1, &sockfd, sizeof(int));
-    memcpy(thread_sfd1, &sockfd, sizeof(int));
+    // memcpy(thread_sfd1, &sockfd, sizeof(int));
+    // memcpy(thread_sfd2, &sockfd, sizeof(int));
 
    for (rp = result; rp != NULL; rp = rp->ai_next) {
        sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
@@ -166,10 +203,10 @@ int main(int argc, char *argv[]) {
            continue;
 
        if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1){
-          printf("**Anna's socket successfully created\n");
+          printf("** Anna's socket successfully created\n");
           break;                  /* Success */
        }
-       printf("**Could not find server. Attempting to reconnect in 3 sec. . .\n");
+       printf("** Could not find server. Attempting to reconnect in 3 sec. . .\n");
        sleep(3);
        close(sockfd);
    }
@@ -181,7 +218,7 @@ int main(int argc, char *argv[]) {
 
      freeaddrinfo(result);
 
-     printf("**Successfully connected to the server\n");
+     printf("** Successfully connected to the server\n");
 
 
 //----------END NEW METHOD--------------------------
@@ -213,12 +250,25 @@ int main(int argc, char *argv[]) {
     // else
     //     printf("connected to the server..\n");
 //-----------END OLD METHOD--------------------------------
+    
+     // printf("sockfd: %d\n", sockfd);
 
+     // printf("new for thread sockfd: %d\n", &thread_sfd1);
 
-    //function for chat
-    func(sockfd);
+     pthread_t readServer;
+
+    if (pthread_create(&readServer, NULL, &readFromServer, (void*)&sockfd ) != 0){
+         fprintf(stderr, "ERROR: Can't create server reading thread: %s\n", strerror(errno));
+         exit(EXIT_FAILURE);
+    }
+
+    pthread_detach(readServer);
+
+    //function for writing to server
+    writeToServer(sockfd);
 
     //close the socket
     close(sockfd);
 
+    return 0;
 }
