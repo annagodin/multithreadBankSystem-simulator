@@ -12,6 +12,8 @@
 #include <netdb.h>
 #include <pthread.h> 
 #include <netinet/in.h>
+#include "bankingServer.h"
+
 #define PORT 9382
 #define _GNU_SOURCE
 #define MAX 500
@@ -23,15 +25,28 @@ typedef int bool;
 
 
 int numAccounts = 0; //counter for number accounts created during session
+// TRYING TO DEFINE STRUCT IN HEADER
+struct account
+{
 
-struct account{
-
-    char* accountname;
+    char accountName[266];
     double balance;   
-    bool inSession;
+    int inSessionFlag;
+
+};
+typedef struct account account;
+
+/* making the linked list of bank account structs
+struct bankAccounts
+{
+	struct bankAccounts *next;
+	struct account account;
+
 
 };
 
+bankAccounts *accountList = NULL;
+*/
 //struct account *bankAccounts;
 
 //create temp array of structs to hold accounts for that session
@@ -78,21 +93,23 @@ void func(int sockfd){
     		
     		//ERR check: if account already created
     		//if <accountname> input = acct_name 
-    		if(numAccounts == 0)
+    		if(numAccounts == 0){
                     printf("0: will create a NEW account!\n");
-            else {
-                for(i = 0; i < numAccounts; i++){
+        	    createAccount(token);    
+		}else {
+                	for(i = 0; i < numAccounts; i++){
                 //struct *temp = bankAccounts;
                     
-                    if(numAccounts != 0 && (strcmp(token, bankAccounts[i].accountname) == 0)){
-                        printf("error, this account already exists!\n");
-                        return;
-                        //return some message to the client!!
-                    }else{
-                        printf("will create NEW account!!\n");
-                    }
-                }
-            }     
+                    		if(numAccounts != 0 && (strcmp(token, bankAccounts[i].accountName) == 0)){
+                        		printf("error, this account already exists!\n");
+                        		return;
+                        	//return some message to the client!!
+                    		}else{
+                        		printf("will create NEW account!!\n");
+                    			createAccount(token);
+		    		}
+                	}	
+            	}	     
     	} 
     	// if msg contains "Exit" then server exit and chat ended.
     	if (strncmp("exit", cmd, 4) == 0) { 
@@ -111,6 +128,41 @@ void func(int sockfd){
         printf("Sent message to client: '%s'\n",buff);
     } 
 } 
+
+
+//create account function
+void createAccount(char* token){
+
+	account newAccount;
+				
+	memset(newAccount.accountName, '\0', sizeof(newAccount.accountName));
+	strcpy(newAccount.accountName,token);
+
+	newAccount.balance = 0.0;
+	newAccount.inSessionFlag= 0;
+
+	printf("\nContents of new account struct: name = %s\n balance = $%d\n inSession = %d\n", newAccount.accountName, newAccount.balance, newAccount.inSessionFlag);
+
+
+	 
+	//Attach new account to linked list of structs holding all bank accounts
+	
+	numAccounts++;
+	printf("number of accounts now: %d\n", numAccounts);
+
+	
+
+
+
+}
+
+
+
+
+
+
+
+
 
 
 //Driver function
