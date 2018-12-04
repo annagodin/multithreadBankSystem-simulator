@@ -14,7 +14,7 @@
 #include <netinet/in.h>
 #define PORT 9382
 #define _GNU_SOURCE
-#define MAX 300
+#define MAX 500
 #define SA struct sockaddr
 //9382
 typedef int bool;
@@ -54,34 +54,27 @@ void func(int sockfd){
         // read the message from client and copy it in buffer
 	    read(sockfd, buff, sizeof(buff)); 
         // print buffer which contains the client contents
-        printf("From client: %s\t To client : ", buff); 
-        bzero(buff, MAX); 
-        n = 0; 
-        // copy server message in the buffer 
-        while ((buff[n++] = getchar()) != '\n'); 
-  
-        // and send that buffer to client 
-        write(sockfd, buff, sizeof(buff));
-
+        printf("From client: %s\n", buff); 
+         
 
     	//get substring of msg
-
-        char* parse = (char*)malloc(sizeof(char)*(strlen(buff))+2);
-        strcpy(parse,buff);
-
-    	int ret;
-    	char *token;
-    	char *tab = " ";
-
+        char* token = (char*)malloc(sizeof(char)*(strlen(buff))+2);
+        strcpy(token,buff);
+        //printf("token now: %s\n", token);
+    	
+        int ret;
+    	char *cmd;
+    	
         //ANNA: use strsep!!!!!
-        token = strsep(&parse, ",");
+        cmd = strsep(&token, " ");
     	// token = strtok(buff, tab);
     	// token = strtok(NULL, "	\n");
     	//test after: token = strtok(NULL, tab);
-    	printf("token: %s\n", token);
-
+    	printf("command: %s\n", cmd);
+        printf("value: %s\n", token);
+       
     	//if msg contains "create" then server will create an account
-    	if (strncmp("create", buff, 6) == 0){
+    	if (strncmp("create", cmd, 6) == 0){
     		//handle create account
     		
     		//ERR check: if account already created
@@ -101,69 +94,122 @@ void func(int sockfd){
                     }
                 }
             }     
-    	
     	} 
     	
     	// if msg contains "Exit" then server exit and chat ended.
-    	if (strncmp("exit", buff, 4) == 0) { 
+    	if (strncmp("exit", cmd, 4) == 0) { 
             printf("Server Exit...\n"); 
             break; 
         } 
 
+        printf("To client:\n");
+         // copy server message in the buffer 
+        bzero(buff, MAX); 
+        n = 0;
+        while ((buff[n++] = getchar()) != '\n');
+        // and send that buffer to client 
+        write(sockfd, buff, sizeof(buff));
+        printf("Sent message to client: %s\n",buff);
     } 
 } 
 
 
 //Driver function
-int main() 
-{ 
-    int sockfd, connfd, len; 
-    struct sockaddr_in servaddr, cli; 
+int main() { 
+
+//-------------TIFF TINGS--------------------
+    // int sockfd, connfd, len; 
+    // struct sockaddr_in servaddr, cli; 
   
-    // socket create and verification
-    sockfd = socket(AF_INET, SOCK_STREAM, 0); 
-    if (sockfd == -1) { 
-        printf("socket creation failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Socket successfully created..\n"); 
-    bzero(&servaddr, sizeof(servaddr)); 
+    // // socket create and verification
+    // sockfd = socket(AF_INET, SOCK_STREAM, 0); 
+    // if (sockfd == -1) { 
+    //     printf("socket creation failed...\n"); 
+    //     exit(0); 
+    // } 
+    // else
+    //     printf("Socket successfully created..\n"); 
+    // bzero(&servaddr, sizeof(servaddr)); 
   
-    // assign IP, PORT 
-    servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-    servaddr.sin_port = htons(PORT); 
+    // // assign IP, PORT 
+    // servaddr.sin_family = AF_INET; 
+    // servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
+    // servaddr.sin_port = htons(PORT); 
   
-    // Binding newly created socket to given IP and verification 
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) { 
-        printf("socket bind failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Socket successfully binded..\n"); 
+    // // Binding newly created socket to given IP and verification 
+    // if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) { 
+    //     printf("socket bind failed...\n"); 
+    //     exit(0); 
+    // } 
+    // else
+    //     printf("Socket successfully binded..\n"); 
   
-    // Now server is ready to listen and verification 
-    if ((listen(sockfd, 5)) != 0) { 
-        printf("Listen failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Server listening..\n"); 
-    len = sizeof(cli); 
+    // // Now server is ready to listen and verification 
+    // if ((listen(sockfd, 5)) != 0) { 
+    //     printf("Listen failed...\n"); 
+    //     exit(0); 
+    // } 
+    // else
+    //     printf("Server listening..\n"); 
+    // len = sizeof(cli); 
   
-    // Accept the data packet from client and verification 
-    connfd = accept(sockfd, (SA*)&cli, &len); 
-    if (connfd < 0) { 
-        printf("server acccept failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("server acccept the client...\n"); 
+    // // Accept the data packet from client and verification 
+    // connfd = accept(sockfd, (SA*)&cli, &len); 
+    // if (connfd < 0) { 
+    //     printf("server acccept failed...\n"); 
+    //     exit(0); 
+    // } 
+    // else
+    //     printf("server acccept the client...\n"); 
+//--------------END TIFF TINGS-------------------------
+
+
+//------------------ANNAS NEW SHIT--------------------
+    int servSockFD;
+    int clientSockFD;
+    struct addrinfo request;
+    request.ai_flags = AI_PASSIVE;
+    request.ai_family = AF_INET;
+    request.ai_socktype = SOCK_STREAM;
+    request.ai_protocol = 0;
+    request.ai_addrlen = 0;
+    request.ai_canonname = NULL;
+    request.ai_next = NULL;
+    struct addrinfo *result;
+
+    getaddrinfo(0,"9382", &request, &result);
+
+    if ((servSockFD = socket(result->ai_family, result->ai_socktype, result->ai_protocol) ) < 0 ){
+        fprintf(stderr, "ERROR: Server socket could not be created: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    printf("**Socket successfully created\n");
+    if(bind(servSockFD, result->ai_addr, result->ai_addrlen) < 0){
+        printf("ERROR: Bind failed: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    printf("**Socket successfully binded\n");
+    int optval = 1;
+    setsockopt(servSockFD, SOL_SOCKET, SO_REUSEADDR , &optval, sizeof(int));
+
+
+    listen(servSockFD,5); // five connections can be queued
+    printf("**Listening for connection\n");
+    if((clientSockFD= accept(servSockFD, NULL, NULL)) < 0){
+        fprintf(stderr, "ERROR: failed to accept: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    printf("**Socket successfully accepted, shoudld be good to go\n");
+
+//------------------END ANNAS NEW SHIT----------------
+
+
 
     // Function for chatting between client and server
-    func(connfd); 
+    func(clientSockFD); 
   
     // After chatting close the socket 
-    close(sockfd); 
+    close(clientSockFD); 
+    close(servSockFD);
 } 

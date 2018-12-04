@@ -14,14 +14,15 @@
 #include <netinet/in.h>
 #define PORT 9382
 #define _GNU_SOURCE
-#define MAX 80 
+#define MAX 500 
 #define SA struct sockaddr
 
 int sockfd;
 
 
-void func(int sockfd) 
-{ 
+void func(int sockfd) {
+
+	int inSession = 0; 
     int valid = 1; //bool valid input flag
     char buff[MAX]; 
     int n; 
@@ -74,7 +75,7 @@ void func(int sockfd)
 				//closes account session
 				printf("valid input\n");
 				valid = 1;
-					exit(-1);
+				
 			}
 
 			else if(strncmp("quit", buff, 4) == 0){
@@ -89,7 +90,7 @@ void func(int sockfd)
 			}
 			else {
 				valid = 0;
-				printf("invalid input\n");
+				//printf("invalid input\n");
 			}
 			// if(valid == 0){
 				
@@ -99,48 +100,120 @@ void func(int sockfd)
 			
 		} while (valid==0);
 
-		 write(sockfd, buff, sizeof(buff)); 
+		write(sockfd, buff, sizeof(buff)); 
 
 		bzero(buff, sizeof(buff)); 
-	        read(sockfd, buff, sizeof(buff)); 
-	        printf("From Server : %s", buff); 
-	        if ((strncmp(buff, "exit", 4)) == 0) { 
-	            printf("Client Exit...\n"); 
-	            break; 
-	        } 
+        read(sockfd, buff, sizeof(buff)); 
+        printf("From Server : %s", buff); 
+        if ((strncmp(buff, "exit", 4)) == 0) { 
+            printf("Client Exit...\n"); 
+            break; 
+        } 
     } 
 }
 
 
-int main() 
-{ 
+int main(int argc, char *argv[]) { 
     int connfd; 
     struct sockaddr_in servaddr, cli; 
   
+//------------ANNAS TRYING NEW THINGS------------------------
+    struct addrinfo hints;
+    struct addrinfo *result, *rp;
+    int sfd, s, j;
+    size_t len;
+    ssize_t nread;
+
+    void *thread_sfd1 = malloc(sizeof(sockfd));
+    void *thread_sfd2 = malloc(sizeof(sockfd));
+
+    if (argc<3){
+    	fprintf(stderr, "ERROR: not enough arguments, must specify machine name and port\n");
+   		exit(EXIT_FAILURE);
+    }
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_flags = 0;
+	hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;  
+    hints.ai_addrlen = 0;
+    hints.ai_canonname = NULL;
+    hints.ai_next = NULL;       
+     /* Any protocol */
+    
+    char* machineName = malloc(sizeof(char)*(strlen(argv[1])+20));
+    strcpy(machineName,argv[1]);
+    strcat(machineName,".cs.rutgers.edu");
+    s = getaddrinfo(machineName, "9382", &hints, &result);
+    if (s!=0){
+    	fprintf(stderr, "ERROR: getaddrinfo: %s\n", gai_strerror(s));
+    	exit(EXIT_FAILURE);
+    }
+
+     /* getaddrinfo() returns a list of address structures.
+      Try each address until we successfully connect(2).
+      If socket(2) (or connect(2)) fails, we (close the socket
+      and) try the next address. */
+
+    memcpy(thread_sfd1, &sockfd, sizeof(int));
+    memcpy(thread_sfd1, &sockfd, sizeof(int));
+
+   for (rp = result; rp != NULL; rp = rp->ai_next) {
+       sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+       if (sockfd == -1)
+           continue;
+
+       if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1){
+          printf("**Anna's socket successfully created\n");
+          break;                  /* Success */
+       }
+       printf("**Could not find server. Attempting to reconnect in 3 sec. . .\n");
+       sleep(3);
+       close(sockfd);
+   }
+
+   if (rp == NULL) {               /* No address succeeded */
+       fprintf(stderr, "ERROR: Could not connect\n");
+       exit(EXIT_FAILURE);
+     }
+
+     freeaddrinfo(result);
+
+     printf("**Successfully connected to the server\n");
+
+
+//----------END NEW METHOD--------------------------
+
+
+//-----------OLD METHOD---------------------------------------
     // socket create and varification
-    sockfd = socket(AF_INET, SOCK_STREAM, 0); 
-    if (sockfd == -1) { 
-        printf("socket creation failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Socket successfully created..\n"); 
-    bzero(&servaddr, sizeof(servaddr)); 
+    // sockfd = socket(AF_INET, SOCK_STREAM, 0); 
+    // if (sockfd == -1) { 
+    //     printf("socket creation failed...\n"); 
+    //     exit(0); 
+    // } 
+    // else
+    //     printf("Socket successfully created..\n"); 
+    // bzero(&servaddr, sizeof(servaddr)); 
 
 
-    //assign IP, PORT
-    servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
-    servaddr.sin_port = htons(PORT);
+    // //assign IP, PORT
+    // servaddr.sin_family = AF_INET; 
+    // servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+    // servaddr.sin_port = htons(PORT);
 
 
-    //connect the client socket to server socket
-    if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) { 
-        printf("connection with the server failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("connected to the server..\n");
+    // //connect the client socket to server socket
+    // if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) { 
+    //     printf("connection with the server failed...\n"); 
+    //     exit(0); 
+    // } 
+    // else
+    //     printf("connected to the server..\n");
+//-----------END OLD METHOD--------------------------------
+
 
     //function for chat
     func(sockfd);
