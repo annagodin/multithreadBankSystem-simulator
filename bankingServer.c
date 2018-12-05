@@ -202,14 +202,24 @@ void func(int sockfd){
 		    	}
                 	
             	}	     
-    	} 
+    	}
+	else if(strncmp("quit", cmd, 4) == 0){
+		
+		printf("client quit, so check if other clients there\n");
+		break;
+	} 
     	// if msg contains "Exit" then server exit and chat ended.
     	if (strncmp("exit", cmd, 4) == 0) { 
             printf("Server Exit...\n"); 
             break; 
         } 
 
-        printf("Write a message to client: ");
+
+	// Just seeing what happens when commenting this out
+        // I personally don't think server needs to have the ability to write back?
+        // we can discuss this!
+	/*
+	printf("Write a message to client: ");
         bzero(buff, MAX); 
         n = 0;
          // copy server message in the buffer
@@ -218,13 +228,15 @@ void func(int sockfd){
         // and send that buffer to client 
         write(sockfd, buff, sizeof(buff));
         printf("Sent message to client: '%s'\n",buff);
+
+	*/
     } 
 } 
 
 
 
-/*
-//create account function
+//wrote createAccount() as a linked list method addNode()
+/*create account function
 void createAccount(char* token){
 
 	account newAccount;
@@ -338,8 +350,9 @@ int main() {
 
     printf("**Socket successfully binded\n");
     int optval = 1;
-    setsockopt(servSockFD, SOL_SOCKET, SO_REUSEADDR , &optval, sizeof(int));
-
+    setsockopt(servSockFD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
+    //setsockopt(servSockFD, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)); //based on his ex in class
+										   //should fix time lockout with binding
 
     listen(servSockFD,5); // five connections can be queued
     printf("**Listening for connection\n");
