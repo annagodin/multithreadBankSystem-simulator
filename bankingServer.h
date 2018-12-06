@@ -7,6 +7,8 @@ typedef struct bankAccount {
     double balance;   
     int inSessionFlag;
     struct bankAccount *next;
+    pthread_mutex_t lock;
+
 } bankAccount;
 
 

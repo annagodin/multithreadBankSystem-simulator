@@ -17,7 +17,7 @@
 #define MAX 500 
 // #define SA struct sockaddr
 int exitClient = 0;
-
+int inServiceSession = 0;
 //TO RUN: ./bankingClient machine.cs.rutgers.edu port
 
 void * readFromServer(void* args){
@@ -85,6 +85,7 @@ void writeToServer(int sockfd) {
         //CANT SERVE MORE THAN ONE ACCOUNT PER CLIENT
 				//ANNA: where do we check if the client is in service mode? create a boolean?
 				valid = 1;
+				inServiceSession = 1;
 			}
 
 			else if (strncmp("deposit", buff, 7) == 0){ //EX: deposit <amount>
@@ -135,8 +136,47 @@ void writeToServer(int sockfd) {
        
 } 
 
+/*
+
+void serveAcct(int sockfd){
+	
+
+	int valid = 1;
+	char buff[MAX];
+	int n;
+	
+	while(inServiceSession == 1){
+		
+		for (;;){
+
+			do{
+				if(valid ==0){
+					printf("Invalid command, please try again: \n");
+				}else{
+					printf("Commands:\n [deposit]    [withdraw]    [query]    [end]");
+					printf("Please enter a command: ");
+				}
+				
+				bzero(buff,sizeof(buff));
+				n = 0;
+				while((buff[n++] = getchar() != '\n');
+				buff[strlen(buff)-1]='\0';
+
+			
+				if(strncmp("create", buff, 6) == 0){ //EX: create <acctName>
+                        		printf("valid input\n");
+                        		valid = 1;
+				}
+
+			}
 
 
+
+		}
+	}
+}
+
+*/
 int main(int argc, char *argv[]) { 
     int sockfd;
    // int connfd; 
