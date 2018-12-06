@@ -1,65 +1,34 @@
-#ifndef bankingServer
-#define bankingServer
-
-/*
-typedef struct accountinfo
-{
-	char accountName[266];
-	double balance;
-	int inSessionFlag;
-
-} account;
+#ifndef BANKINGSERVER_H
+#define BANKINGSERVER_H
 
 
-struct bankAccounts
-{
+typedef struct bankAccount {
+    char *accountName;
+    double balance;   
+    int inSessionFlag;
+    struct bankAccount *next;
+} bankAccount;
 
-	struct bankAccounts *next;
-	account data;
-
-};
-*/
 
 //method prototypes in Server
+bankAccount* createNode();
 void createAccount(char* token);
+void addNode(bankAccount **head, bankAccount * node);
+int alreadyExists(char *token);
+void printLL();
+void func(int sockfd);
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+int serveAcct(int sockfd, bankAccount *frontNode, char * acctName, int inSession);
+void deposit(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
+void withdraw(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
+void query(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
+int end(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
 
 
 #endif
+
+
 
 
 

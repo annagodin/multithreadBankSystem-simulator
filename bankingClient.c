@@ -1,4 +1,4 @@
-#include <unistd.h>
+#include <unistd.h> 
 #include <stdio.h>
 #include <dirent.h>
 #include <string.h>
@@ -18,6 +18,7 @@
 // #define SA struct sockaddr
 int exitClient = 0;
 
+//TO RUN: ./bankingClient machine.cs.rutgers.edu port
 
 void * readFromServer(void* args){
 	char buff[MAX];
@@ -29,7 +30,7 @@ void * readFromServer(void* args){
 		buff[strlen(buff)-1]='\0';
 		if (status>0){
 			printf("\nFrom Server: '%s'\n", buff); 
-	   		memset(buff, 0, sizeof(buff));
+	   	memset(buff, 0, sizeof(buff));
 		}
 	    
 	}
@@ -55,62 +56,59 @@ void * readFromServer(void* args){
 }
 
 void writeToServer(int sockfd) {
+  int valid = 1; //bool valid input flag
+  char buff[MAX]; 
+  int n; 
+  for (;;) { 
+    do {
 
-	int inSession = 0; 
-    int valid = 1; //bool valid input flag
-    char buff[MAX]; 
-    int n; 
-    for (;;) { 
-    	do {
+  		if (valid==0){
+  			printf("Invalid command, please try again: \n");
+  		 } else {
+  			printf("COMMANDS:\n[create]   [serve]   [deposit]   [withdraw]   [query]   [end]   [quit]\n"); 
+  		  printf("Please enter a command: "); 
+       }
+        bzero(buff, sizeof(buff)); 
+        n = 0; 
+        while ((buff[n++] = getchar()) != '\n'); 
+        buff[strlen(buff)-1]='\0';
+        // write(sockfd, buff, sizeof(buff)); 
+		  
+  		if(strncmp("create", buff, 6) == 0){ //EX: create <acctName>
+  			printf("valid input\n");
+  			valid = 1;
+  		}
 
-    		if (valid==0){
-    			printf("Invalid command, please try again : \n");
-    		} else {
-    			 printf("Enter a string : "); 
-    		}
-	       
-	        bzero(buff, sizeof(buff)); 
-	        n = 0; 
-	        while ((buff[n++] = getchar()) != '\n'); 
-	        buff[strlen(buff)-1]='\0';
-	        // write(sockfd, buff, sizeof(buff)); 
-	        
-		
-			if(strncmp("create", buff, 6) == 0){
+			else if(strncmp("serve",buff, 5) == 0){ //EX: serve <acctName>
 				printf("valid input\n");
-				valid = 1;
-			}
-
-			else if(strncmp("serve",buff, 5) == 0){
-				printf("valid input\n");
-				//puts client in service mode
+				//Puts client in service mode
+        //CANT SERVE MORE THAN ONE ACCOUNT PER CLIENT
 				//ANNA: where do we check if the client is in service mode? create a boolean?
 				valid = 1;
 			}
 
-			else if (strncmp("deposit", buff, 7) == 0){
+			else if (strncmp("deposit", buff, 7) == 0){ //EX: deposit <amount>
 				//server should only accept cmd if in service mode
 				printf("valid input\n");
 				valid = 1;
 			}
 
-			else if (strncmp("withdraw", buff, 8) == 0){
+			else if (strncmp("withdraw", buff, 8) == 0){ //EX: withdraw <amount>
 				//server should only accept cmd if in service mode
 				printf("valid input\n");
 				valid = 1;
 			}
 
-			else if(strncmp("query", buff, 5) == 0){
+			else if(strncmp("query", buff, 5) == 0){ //EX: query
 				//server should only accept cmd if in service mode
 				printf("valid input\n");
 				valid = 1;
 			}
 
-			else if(strncmp("end", buff, 3) == 0){
+			else if(strncmp("end", buff, 3) == 0){ //EX: end
 				//closes account session
 				printf("valid input\n");
-				valid = 1;
-				
+				valid = 1;	
 			}
 
 			else if(strncmp("quit", buff, 4) == 0){
@@ -118,27 +116,17 @@ void writeToServer(int sockfd) {
 				//pthread_exit
 				//free()
 				//all that jazz
-
 				// printf("valid input\n");
 				valid = 1;
 				printf("** Closing connection, exiting client\n");
 				return;
-
-        	} 
-
-        	else {
+      } 
+      else {
 				valid = 0;
-				//printf("invalid input\n");
 			}
 
-		
 			
-			// if(valid == 0){
-				
-			// }
-
-			
-		} while (valid==0);
+	} while (valid==0);
 
 		write(sockfd, buff, sizeof(buff)); 
 		bzero(buff, sizeof(buff)); 
@@ -170,8 +158,8 @@ int main(int argc, char *argv[]) {
     }
 
     memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_flags = 0;
-	hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
+	  hints.ai_flags = 0;
+	  hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
     hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
     hints.ai_flags = 0;
     hints.ai_protocol = 0;  
@@ -181,9 +169,10 @@ int main(int argc, char *argv[]) {
      /* Any protocol */
     
     char* machineName = malloc(sizeof(char)*(strlen(argv[1])+20));
-    strcpy(machineName,argv[1]);
-    strcat(machineName,".cs.rutgers.edu");
-    s = getaddrinfo(machineName, "9382", &hints, &result);
+    // strcpy(machineName,argv[1]);
+    // strcat(machineName,".cs.rutgers.edu");
+    // s = getaddrinfo(machineName, "9382", &hints, &result);
+    s = getaddrinfo(argv[1], "9382", &hints, &result);
     if (s!=0){
     	fprintf(stderr, "ERROR: getaddrinfo: %s\n", gai_strerror(s));
     	exit(EXIT_FAILURE);
@@ -193,9 +182,6 @@ int main(int argc, char *argv[]) {
       Try each address until we successfully connect(2).
       If socket(2) (or connect(2)) fails, we (close the socket
       and) try the next address. */
-
-    // memcpy(thread_sfd1, &sockfd, sizeof(int));
-    // memcpy(thread_sfd2, &sockfd, sizeof(int));
 
    for (rp = result; rp != NULL; rp = rp->ai_next) {
        sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
@@ -220,40 +206,7 @@ int main(int argc, char *argv[]) {
 
      printf("** Successfully connected to the server\n");
 
-
 //----------END NEW METHOD--------------------------
-
-
-//-----------OLD METHOD---------------------------------------
-    // socket create and varification
-    // sockfd = socket(AF_INET, SOCK_STREAM, 0); 
-    // if (sockfd == -1) { 
-    //     printf("socket creation failed...\n"); 
-    //     exit(0); 
-    // } 
-    // else
-    //     printf("Socket successfully created..\n"); 
-    // bzero(&servaddr, sizeof(servaddr)); 
-
-
-    // //assign IP, PORT
-    // servaddr.sin_family = AF_INET; 
-    // servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
-    // servaddr.sin_port = htons(PORT);
-
-
-    // //connect the client socket to server socket
-    // if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) { 
-    //     printf("connection with the server failed...\n"); 
-    //     exit(0); 
-    // } 
-    // else
-    //     printf("connected to the server..\n");
-//-----------END OLD METHOD--------------------------------
-    
-     // printf("sockfd: %d\n", sockfd);
-
-     // printf("new for thread sockfd: %d\n", &thread_sfd1);
 
      pthread_t readServer;
 

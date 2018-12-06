@@ -14,8 +14,9 @@
 #include <netinet/in.h>
 #include "bankingServer.h"
 
+
 #define PORT 9382
-#define _GNU_SOURCE
+#define _GNU_SOURCE 
 #define MAX 500
 #define SA struct sockaddr
 //9382
@@ -23,20 +24,10 @@ typedef int bool;
 #define true 1
 #define false 0
 
-
 int numAccounts = 0; //counter for number accounts created during session
-// TRYING TO DEFINE STRUCT IN HEADER
-struct account
-{
 
-    char accountName[266];
-    double balance;   
-    int inSessionFlag;
-    struct account *next;
-};
 
-typedef struct account *bankAccount;
-bankAccount head = NULL;
+bankAccount * frontNode = NULL;
 
 /* making the linked list of bank account structs
 struct bankAccounts
@@ -58,216 +49,172 @@ bankAccounts *accountList = NULL;
 
 
 //account linked list node creation method
-bankAccount createNode(){
-
-	bankAccount temp;
-	temp = (bankAccount)malloc(sizeof(bankAccount));
+bankAccount* createNode(char * token){
+	bankAccount *temp;
+	temp = malloc(sizeof(bankAccount));
 	temp->next = NULL;
+    temp->accountName = (char*)malloc(sizeof(char)*(strlen(token)+1));
+    strcpy(temp->accountName, token);
+    temp->balance = 0;
+    temp->inSessionFlag = 0;
 	return temp;
-
 }
 
 //add new bank account node to linked list of account structs
-bankAccount addNode(bankAccount head, char* token){
-
-	bankAccount temp, p;
-	temp = createNode();
-
-	memset(temp->accountName, '\0', sizeof(temp->accountName));
-	strcpy(temp->accountName, token);
-
-	temp->balance = 0;
-	temp->inSessionFlag = 0;
-
-	if(head == NULL){
-		head = temp;
-
+void addNode(bankAccount** head, bankAccount * node){
+	
+    bankAccount *p = *head;
+	
+	if(*head == NULL){
+		*head = node;
 	}else{
-
-		p = head;
 		
 		while(p->next != NULL){
 			p = p->next;
 		}
-		p->next = temp;
+		p->next = node;
 	}
 
-	printLL(head);	//test just to print
-	return head;
-
+	// printLL(head);	//test just to print
+	// return head;
 }
+
 
 //boolean method to check if account exists already in linked list
 int alreadyExists(char *token){
-
-
-	bankAccount temp;
-	temp = head;
+	bankAccount *temp = frontNode;
 
 	while(temp != NULL){
 		int result = strcmp(temp->accountName, token);
 		
 		if(result == 0){
-			printf("account name already exists!\n");
+			printf("Account name already exists!\n");
 			return 1;
 		}else{
-			
 			temp = temp->next;
-
 		}
 	}
-	printf("account does not exist, continue creation!\n");
+	printf("Account does not exist, continue creation!\n");
 	return 0;	//account not found, continue to create new account
-
 }
 
 //print bankAccount structs as a test
-printLL(bankAccount head){
-
-	bankAccount temp;
-	temp = head;
-
+void printLL(){
+	printf("\n");
+    bankAccount *temp = frontNode;
 	while(temp != NULL){
-		printf("Account Name: %s\n Balance: $%d\n inSessionFlag: %ld\n", temp->accountName, temp->balance, temp->inSessionFlag);
+		printf("Account Name: %s\nBalance: $%lf\ninSessionFlag: %d\n\n", temp->accountName, temp->balance, temp->inSessionFlag);
 		temp = temp->next;
 	}
-	
-
-
 }
 
+void printNode(bankAccount *node){
+    printf("\nAccount Name: %s\nBalance: $%lf\ninSessionFlag: %d\n\n", node->accountName, node->balance, node->inSessionFlag);      
+}
 
-
-
-
-
-
-
-/*-------------GEEKS FOR GEEKS EXAMPLE ------------------*/
 //Function designed for chat between client and server
-void func(int sockfd){ 
-    char buff[MAX]; 
+void func(int sockfd){
+    int inSession=0; 
+    char r_buff[MAX]; 
+    char w_buff[MAX];
+    char command[20];
+    char value[200];
     int n; 
     int i;
-    // infinite loop for chat
+    memset(command, 0, sizeof(command));
+    memset(value, 0, sizeof(value));
+    char currAccount[260];
 
+    // infinite loop for chat
     for (;;) { 
-        bzero(buff, MAX); 
+        bzero(r_buff, MAX); 
 
         // read the message from client and copy it in buffer
-	    read(sockfd, buff, sizeof(buff)); 
+	    read(sockfd, r_buff, sizeof(r_buff));
+
         // print buffer which contains the client contents
-        printf("From client: %s\n", buff); 
+        printf("From client: %s\n", r_buff); 
          
-    	//get substring of msg
-        char* token = (char*)malloc(sizeof(char)*(strlen(buff))+2);
-        strcpy(token,buff);
-        //printf("token now: %s\n", token);
+        sscanf(r_buff, "%s %s",command, value);
+        printf("\n\n----------------\ncommand: %s\n", command);
+        printf("value: %s\n---------------\n\n", value );
     	
-        int ret;
-    	char *cmd;
-    	
-        //ANNA: use strsep!!!!!
-        cmd = strsep(&token, " ");
-    	// token = strtok(buff, tab);
-    	// token = strtok(NULL, "	\n");
-    	//test after: token = strtok(NULL, tab);
-    	printf("command: %s\n", cmd);
-        printf("value: %s\n", token);
        
     	//if msg contains "create" then server will create an account
-    	if (strncmp("create", cmd, 6) == 0){
+    	if (strncmp("create", command, 6) == 0){
     		//handle create account
-    		
     		//ERR check: if account already created
     		//if <accountname> input = acct_name 
     		if(numAccounts == 0){
-                    printf("0: will create a NEW account!\n");
-        	    addNode(head,token);    
-		    numAccounts++;
-		    printf("Number of Accounts: %d\n", numAccounts);
-		    printLL(head);
-		}else {
-                
-                    if(alreadyExists(token) == 1)
-                    	{
-                        	printf("error, this account already exists!\n");
-        
-                    	}else{
-                        	printf("will create NEW account!!\n");
-                    		addNode(head, token);
-				printLL(head);
-				numAccounts++;	
-				printf("Number of Accounts: %d\n", numAccounts);
+                printf("0 Accts: will create a NEW account!\n");
+        	    bankAccount *node = createNode(value);
+                addNode(&frontNode,node);    
+    		    numAccounts++;
+    		    // printf("Number of Accounts: %d\n", numAccounts);
+                bzero(w_buff, MAX); 
+                strcpy(w_buff,"Account successfully added\n");
+                write(sockfd, w_buff, sizeof(w_buff));
+		    } else {
+                if(alreadyExists(value) == 1) {
+                    bzero(w_buff, MAX); 
+                    strcpy(w_buff,"Error, this account already exists!\n");
+                    write(sockfd, w_buff, sizeof(w_buff));
+                    // printf("Error, this account already exists!\n");
+                } else {
+                	printf("will create NEW account!!\n");
+                    bankAccount *node = createNode(value);
+            		addNode(&frontNode, node);
+    				numAccounts++;	
+    				// printf("Number of Accounts: %d\n", numAccounts);
+                    bzero(w_buff, MAX); 
+                    strcpy(w_buff,"Account successfully added\n");
+                    write(sockfd, w_buff, sizeof(w_buff));
 		    	}
                 	
-            	}	     
-    	}
-	else if(strncmp("quit", cmd, 4) == 0){
-		
-		printf("client quit, so check if other clients there\n");
-		break;
-	} 
-    	// if msg contains "Exit" then server exit and chat ended.
-    	if (strncmp("exit", cmd, 4) == 0) { 
-            printf("Server Exit...\n"); 
-            break; 
-        } 
+            }	     
+    	   
+        } else if (strncmp("serve", command, 5) == 0){
+            inSession = serveAcct(sockfd, frontNode, value, inSession);
+            if (inSession==1){
+                strcpy(currAccount,value);
+            }
+        } else if (strncmp("deposit", command, 7) == 0){
+            deposit(sockfd, frontNode, currAccount, inSession);
+        } else if (strncmp("withdraw", command, 8) == 0){
+            withdraw(sockfd, frontNode, currAccount, inSession);
+        } else if (strncmp("query", command, 5) == 0){
+            query(sockfd, frontNode, currAccount, inSession);
+        } else if (strncmp("end", command, 3) == 0){
+            inSession = end(sockfd, frontNode, currAccount, inSession);
+        } else if(strncmp("quit", command, 4) == 0){
+    	   printf("client quit, so check if other clients there\n");
+    	   break;
+	   } 
+    	
+        memset(r_buff, 0, sizeof(r_buff));
+        memset(w_buff, 0, sizeof(w_buff));
+        memset(command, 0, sizeof(command));
+        memset(value, 0, sizeof(value));
 
-
-	// Just seeing what happens when commenting this out
-        // I personally don't think server needs to have the ability to write back?
-        // we can discuss this!
-	/*
-	printf("Write a message to client: ");
-        bzero(buff, MAX); 
-        n = 0;
-         // copy server message in the buffer
-        while ((buff[n++] = getchar()) != '\n');
-        buff[strlen(buff)]='\0';
-        // and send that buffer to client 
-        write(sockfd, buff, sizeof(buff));
-        printf("Sent message to client: '%s'\n",buff);
-
-	*/
     } 
 } 
 
 
-
-//wrote createAccount() as a linked list method addNode()
-/*create account function
-void createAccount(char* token){
-
-	account newAccount;
-				
-	memset(newAccount.accountName, '\0', sizeof(newAccount.accountName));
-	strcpy(newAccount.accountName,token);
-
-	newAccount.balance = 0.0;
-	newAccount.inSessionFlag= 0;
-
-	printf("\nContents of new account struct: name = %s\n balance = $%d\n inSession = %d\n", newAccount.accountName, newAccount.balance, newAccount.inSessionFlag);
-
-
-	 
-	//Attach new account to linked list of structs holding all bank accounts
-	
-	
-	
-	numAccounts++;
-	printf("number of accounts now: %d\n", numAccounts);
-
-	
-
-
+int serveAcct(int sockfd, bankAccount *frontNode, char * acctName, int inSession){
 
 }
-*/
+void deposit(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
 
+}
+void withdraw(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
 
+}
+void query(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
 
-
+}
+int end(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
+    
+}
 
 
 
@@ -275,53 +222,6 @@ void createAccount(char* token){
 
 //Driver function
 int main() { 
-
-//-------------TIFF TINGS--------------------
-    // int sockfd, connfd, len; 
-    // struct sockaddr_in servaddr, cli; 
-  
-    // // socket create and verification
-    // sockfd = socket(AF_INET, SOCK_STREAM, 0); 
-    // if (sockfd == -1) { 
-    //     printf("socket creation failed...\n"); 
-    //     exit(0); 
-    // } 
-    // else
-    //     printf("Socket successfully created..\n"); 
-    // bzero(&servaddr, sizeof(servaddr)); 
-  
-    // // assign IP, PORT 
-    // servaddr.sin_family = AF_INET; 
-    // servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-    // servaddr.sin_port = htons(PORT); 
-  
-    // // Binding newly created socket to given IP and verification 
-    // if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) { 
-    //     printf("socket bind failed...\n"); 
-    //     exit(0); 
-    // } 
-    // else
-    //     printf("Socket successfully binded..\n"); 
-  
-    // // Now server is ready to listen and verification 
-    // if ((listen(sockfd, 5)) != 0) { 
-    //     printf("Listen failed...\n"); 
-    //     exit(0); 
-    // } 
-    // else
-    //     printf("Server listening..\n"); 
-    // len = sizeof(cli); 
-  
-    // // Accept the data packet from client and verification 
-    // connfd = accept(sockfd, (SA*)&cli, &len); 
-    // if (connfd < 0) { 
-    //     printf("server acccept failed...\n"); 
-    //     exit(0); 
-    // } 
-    // else
-    //     printf("server acccept the client...\n"); 
-//--------------END TIFF TINGS-------------------------
-
 
 //------------------ANNAS NEW SHIT--------------------
     int servSockFD;
@@ -363,7 +263,6 @@ int main() {
     printf("**Socket successfully accepted, shoudld be good to go\n");
 
 //------------------END ANNAS NEW SHIT----------------
-
 
 
     // Function for chatting between client and server
