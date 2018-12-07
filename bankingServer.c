@@ -371,6 +371,10 @@ void * func(void* args) {
         } else if(strcmp("quit", command) == 0){
             // printf("will QUIT\n");
     	    printf("client quit, so check if other clients there\n");
+            if(isInSession(inSession, sockfd) == 1){
+                inSession = end(sockfd, currAccount, inSession);
+                strcpy(currAccount, " ");
+            }
             close(sockfd);
             return;
     	    // break;
