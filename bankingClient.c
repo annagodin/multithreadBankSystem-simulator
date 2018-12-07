@@ -29,43 +29,33 @@ void * readFromServer(void* args){
 		status = read(networkSockFD, buff, sizeof(buff));
 		buff[strlen(buff)-1]='\0';
 		if (status>0){
-			printf("\nFrom Server: '%s'\n", buff); 
+			printf("\n%s\n", buff); 
 	   	memset(buff, 0, sizeof(buff));
 		}
-	    
+	    if(exitClient==1){
+        break;
+      }
 	}
-
-
-	// while (status = read(networkSockFD, buff, sizeof(buff))>=0) { 
-	//        printf("From Server: %s\n", buff); 
-	//        memset(buff, 0, sizeof(buff));   
-	//        if (strcmp(buff, "quit")==0){
-	//        		break;
-	//     		exitClient=1;
- //        	} 
-	// }
 	
 
 	printf("** Closing connection\n");
-    close(networkSockFD);
-    free(args);
-    exit(1);
-    return 0;
+  close(networkSockFD);
+  exit(1);
+  return 0;
 	
-    
 }
 
 void writeToServer(int sockfd) {
   int valid = 1; //bool valid input flag
   char buff[MAX]; 
   int n; 
-  for (;;) { 
+  for (;;) {
     do {
 
   		if (valid==0){
-  			printf("Invalid command, please try again: \n");
+  			printf("Invalid command, please try again: ");
   		 } else {
-  			printf("COMMANDS:\n[create]   [serve]   [deposit]   [withdraw]   [query]   [end]   [quit]\n"); 
+  			printf("\nCOMMANDS:\n[create]   [serve]   [deposit]   [withdraw]   [query]   [end]   [quit]\n"); 
   		  printf("Please enter a command: "); 
        }
         bzero(buff, sizeof(buff)); 
@@ -75,12 +65,12 @@ void writeToServer(int sockfd) {
         // write(sockfd, buff, sizeof(buff)); 
 		  
   		if(strncmp("create", buff, 6) == 0){ //EX: create <acctName>
-  			printf("valid input\n");
+  			//printf("valid input\n");
   			valid = 1;
   		}
 
 			else if(strncmp("serve",buff, 5) == 0){ //EX: serve <acctName>
-				printf("valid input\n");
+				//printf("valid input\n");
 				//Puts client in service mode
         //CANT SERVE MORE THAN ONE ACCOUNT PER CLIENT
 				//ANNA: where do we check if the client is in service mode? create a boolean?
@@ -89,25 +79,25 @@ void writeToServer(int sockfd) {
 
 			else if (strncmp("deposit", buff, 7) == 0){ //EX: deposit <amount>
 				//server should only accept cmd if in service mode
-				printf("valid input\n");
+				//printf("valid input\n");
 				valid = 1;
 			}
 
 			else if (strncmp("withdraw", buff, 8) == 0){ //EX: withdraw <amount>
 				//server should only accept cmd if in service mode
-				printf("valid input\n");
+				//printf("valid input\n");
 				valid = 1;
 			}
 
 			else if(strncmp("query", buff, 5) == 0){ //EX: query
 				//server should only accept cmd if in service mode
-				printf("valid input\n");
+				//printf("valid input\n");
 				valid = 1;
 			}
 
 			else if(strncmp("end", buff, 3) == 0){ //EX: end
 				//closes account session
-				printf("valid input\n");
+				//printf("valid input\n");
 				valid = 1;	
 			}
 
@@ -118,8 +108,9 @@ void writeToServer(int sockfd) {
 				//all that jazz
 				// printf("valid input\n");
 				valid = 1;
-				printf("** Closing connection, exiting client\n");
-				return;
+        exitClient=1;
+				// printf("** Closing connection, exiting client\n");
+				// return;
       } 
       else {
 				valid = 0;
@@ -160,7 +151,7 @@ int main(int argc, char *argv[]) {
     memset(&hints, 0, sizeof(struct addrinfo));
 	  hints.ai_flags = 0;
 	  hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
-    hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+    hints.ai_socktype = SOCK_STREAM; 
     hints.ai_flags = 0;
     hints.ai_protocol = 0;  
     hints.ai_addrlen = 0;
@@ -172,7 +163,7 @@ int main(int argc, char *argv[]) {
     // strcpy(machineName,argv[1]);
     // strcat(machineName,".cs.rutgers.edu");
     // s = getaddrinfo(machineName, "9382", &hints, &result);
-    s = getaddrinfo(argv[1], "9382", &hints, &result);
+    s = getaddrinfo(argv[1], argv[2], &hints, &result);
     if (s!=0){
     	fprintf(stderr, "ERROR: getaddrinfo: %s\n", gai_strerror(s));
     	exit(EXIT_FAILURE);

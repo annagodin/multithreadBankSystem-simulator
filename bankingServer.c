@@ -24,28 +24,56 @@ typedef int bool;
 #define true 1
 #define false 0
 
-int numAccounts = 0; //counter for number accounts created during session
-
+int numAccounts; //counter for number accounts created during session
+pthread_mutex_t openAccLock;
 
 bankAccount * frontNode = NULL;
 
-/* making the linked list of bank account structs
-struct bankAccounts
-{
-	struct bankAccounts *next;
-	struct account account;
 
 
-};
-
-bankAccounts *accountList = NULL;
-*/
 //struct account *bankAccounts;
 
 //create temp array of structs to hold accounts for that session
 //don't forget to free before disconnecting curr sessions
 //struct account *bankAccounts = (struct account *)malloc(sizeof(struct account));
 //struct account bankAccounts[20]; //test bc lazy
+
+
+int isNumeric(char*str){
+
+    int i;
+    int isDec = 0;
+    int numDec =0;
+    for(i = 0; i < strlen(str); i++){
+        
+        if((!isdigit(str[i])) && str[i] != '.'){
+            //printf("the string is not a number. \n");
+            return 0;       //string is a word
+        }
+        
+        if(str[i] == '.'){
+            numDec+=1;
+            //printf("the string has a period in it. \n");
+            isDec = 1;
+        }
+
+        if(isdigit(str[i])){
+            //printf("str[%d] val is: %c\n", i, str[i]);
+            continue;
+        }
+    }
+    
+    if(isDec == 1 && numDec==1){
+        //printf("the string is a decimal. \n");
+        return 1;       //string is decimal value
+    }
+    else if(isDec == 0){
+        //printf("the string is an int. \n");
+        return 1;       //integer
+    } else {
+        return 0;
+    }
+}
 
 
 //account linked list node creation method
@@ -62,9 +90,7 @@ bankAccount* createNode(char * token){
 
 //add new bank account node to linked list of account structs
 void addNode(bankAccount** head, bankAccount * node){
-	
     bankAccount *p = *head;
-	
 	if(*head == NULL){
 		*head = node;
 	}else{
@@ -74,11 +100,50 @@ void addNode(bankAccount** head, bankAccount * node){
 		}
 		p->next = node;
 	}
-
-	// printLL(head);	//test just to print
-	// return head;
 }
 
+//checks if the client is in a current session
+int isInSession(int inSession, int sockfd){
+    if (inSession==0){
+        char w_buff[MAX];
+        bzero(w_buff, MAX); 
+        strcpy(w_buff,"Error, you must be in [Service] mode to execute this command\n");
+        write(sockfd, w_buff, sizeof(w_buff));
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+//writes given message to the client
+void writeToClient(int sockfd, char* message){
+    char w_buff[MAX];
+    bzero(w_buff, MAX); 
+    strcpy(w_buff,message);
+    write(sockfd, w_buff, sizeof(w_buff));
+}
+
+int acctExists(char* acctName){
+    bankAccount *ptr = frontNode;
+    while(ptr!=NULL){
+        if(strcmp(ptr->accountName,acctName)==0){
+            return 1;
+        }
+        ptr=ptr->next;
+    }
+    return 0;
+}
+
+bankAccount* findAcct(char* acctName){
+    bankAccount *ptr= frontNode;
+    while(ptr!=NULL){
+        if(strcmp(ptr->accountName,acctName)==0){
+            return ptr;
+        }
+        ptr=ptr->next;
+    }
+    return NULL;
+}
 
 //boolean method to check if account exists already in linked list
 int alreadyExists(char *token){
@@ -88,13 +153,13 @@ int alreadyExists(char *token){
 		int result = strcmp(temp->accountName, token);
 		
 		if(result == 0){
-			printf("Account name already exists!\n");
+			// printf("Account name already exists!\n");
 			return 1;
 		}else{
 			temp = temp->next;
 		}
 	}
-	printf("Account does not exist, continue creation!\n");
+	// printf("Account does not exist, continue creation!\n");
 	return 0;	//account not found, continue to create new account
 }
 
@@ -108,12 +173,93 @@ void printLL(){
 	}
 }
 
+//prints note in client, for debugging
 void printNode(bankAccount *node){
     printf("\nAccount Name: %s\nBalance: $%lf\ninSessionFlag: %d\n\n", node->accountName, node->balance, node->inSessionFlag);      
 }
 
+
+
+int serveAcct(int sockfd, char * acctName, int inSession){
+    printf("Hey, in serve function\n");
+    //first check if the given account exists, have a function that does that to be clean
+    if(acctExists(acctName)==0){
+        char buff[MAX];
+        sprintf(buff,"* * * Error, cannot serve account that does not exist: [%s] * * *\n",acctName);
+        writeToClient(sockfd, buff);
+        return 0;
+    } else {
+        bankAccount *acct = findAcct(acctName);
+        if(acct->inSessionFlag==1){
+            writeToClient(sockfd,"* * * Error, this account is already in session * * *\n");
+            return 0;
+        } else {
+            acct->inSessionFlag=1;
+            writeToClient(sockfd,"* * * Successfully ENTERED service session * * *\n");
+            printNode(acct);
+            return 1;
+        }
+    }
+}
+void deposit(int sockfd, char* currAccount, int inSession, char * amount){
+    printf("Hey, in deposit function\n");
+    if(isNumeric(amount)==0){
+         writeToClient(sockfd,"* * * Error, amount entered must be NUMERIC * * *\n");
+         return;
+    } else { //number is numeric
+        double amt = atof(amount);
+        if (amount<0){
+            writeToClient(sockfd,"* * * Error, amount entered must be POSITIVE * * *\n");
+            return;
+        }
+        bankAccount *acct = findAcct(currAccount);
+        acct->balance+=amt;
+        char buff[MAX];
+        sprintf(buff,"* * * Successfully deposited [$%lf] into your account * * *\n",amt);
+        writeToClient(sockfd, buff);
+    }
+}
+void withdraw(int sockfd, char* currAccount, int inSession, char * amount){
+    printf("Hey, in withdraw function\n");
+    bankAccount *acct = findAcct(currAccount);
+    if(isNumeric(amount)==0){
+         writeToClient(sockfd,"* * * Error, amount entered must be NUMERIC * * *\n");
+         return;
+    } else { //number is numeric
+        double amt = atof(amount);
+        if (amount<0){
+            writeToClient(sockfd,"* * * Error, amount entered must be POSITIVE * * *\n");
+            return;
+        } else if (amt > acct->balance){
+            writeToClient(sockfd,"* * * Error, amount entered must LESS THAN OR EQUAL TO current balance * * *\n");
+            return;
+        }
+        acct->balance-=amt;
+        char buff[MAX];
+        sprintf(buff,"* * * Successfully withdrew [$%lf] into your account * * *\n",amt);
+        writeToClient(sockfd, buff);
+    }
+}
+void query(int sockfd,  char* currAccount, int inSession){
+    printf("Hey, in query function\n");
+    char buff[MAX];
+    bankAccount *acct = findAcct(currAccount);
+    sprintf(buff,"Account Name: %s\nBalance: $%lf\ninSessionFlag: %d\n", acct->accountName, acct->balance, acct->inSessionFlag);
+    writeToClient(sockfd,buff);
+}
+int end(int sockfd,  char* currAccount, int inSession){
+    printf("Hey, in end function\n");
+    bankAccount *acct = findAcct(currAccount);
+    acct->inSessionFlag=0;
+    writeToClient(sockfd,"* * * Successfully ENDED service session * * *\n");
+    printNode(acct);
+    return 0;   
+}
+
+
 //Function designed for chat between client and server
-void func(int sockfd){
+void * func(void* args) { 
+    int sockfd = *(int*)args;
     int inSession=0; 
     char r_buff[MAX]; 
     char w_buff[MAX];
@@ -124,7 +270,7 @@ void func(int sockfd){
     memset(command, 0, sizeof(command));
     memset(value, 0, sizeof(value));
     char currAccount[260];
-
+    strcpy(currAccount," ");
     // infinite loop for chat
     for (;;) { 
         bzero(r_buff, MAX); 
@@ -136,94 +282,117 @@ void func(int sockfd){
         printf("From client: %s\n", r_buff); 
          
         sscanf(r_buff, "%s %s",command, value);
-        printf("\n\n----------------\ncommand: %s\n", command);
+        printf("\n----------------\ncommand: %s\n", command);
         printf("value: %s\n---------------\n\n", value );
     	
        
     	//if msg contains "create" then server will create an account
-    	if (strncmp("create", command, 6) == 0){
+    	if (strcmp("create", command) == 0){
+            pthread_mutex_lock(&openAccLock);
     		//handle create account
     		//ERR check: if account already created
     		//if <accountname> input = acct_name 
+            if(strcmp(value, " ")==0||strcmp(value,"")==0){
+                writeToClient(sockfd, "* * * Error, you must specify a name for your account! * * *\n");
+                continue;
+            }
     		if(numAccounts == 0){
-                printf("0 Accts: will create a NEW account!\n");
+                // printf("0 Accts: will create a NEW account!\n");
         	    bankAccount *node = createNode(value);
                 addNode(&frontNode,node);    
     		    numAccounts++;
     		    // printf("Number of Accounts: %d\n", numAccounts);
                 bzero(w_buff, MAX); 
-                strcpy(w_buff,"Account successfully added\n");
+                sprintf(w_buff,"* * * Account [%s] successfully added * * *\n", value);
                 write(sockfd, w_buff, sizeof(w_buff));
+                pthread_mutex_unlock(&openAccLock);
 		    } else {
                 if(alreadyExists(value) == 1) {
                     bzero(w_buff, MAX); 
-                    strcpy(w_buff,"Error, this account already exists!\n");
+                    strcpy(w_buff,"* * * Error, this account already exists! * * *\n");
                     write(sockfd, w_buff, sizeof(w_buff));
+                    pthread_mutex_unlock(&openAccLock);
                     // printf("Error, this account already exists!\n");
                 } else {
-                	printf("will create NEW account!!\n");
+                	// printf("will create NEW account!!\n");
                     bankAccount *node = createNode(value);
             		addNode(&frontNode, node);
     				numAccounts++;	
     				// printf("Number of Accounts: %d\n", numAccounts);
                     bzero(w_buff, MAX); 
-                    strcpy(w_buff,"Account successfully added\n");
+                    sprintf(w_buff,"* * * Account [%s] successfully added * * *\n", value);
                     write(sockfd, w_buff, sizeof(w_buff));
+                    pthread_mutex_unlock(&openAccLock);
 		    	}
                 	
             }	     
-    	   
-        } else if (strncmp("serve", command, 5) == 0){
-            inSession = serveAcct(sockfd, frontNode, value, inSession);
-            if (inSession==1){
-                strcpy(currAccount,value);
+        } else if (strcmp("serve", command) == 0){
+             if(strcmp(value, " ")==0||strcmp(value,"")==0){
+                writeToClient(sockfd, "* * * Error, you must specify SOME ACCOUNT * * *\n");
+                continue;
             }
-        } else if (strncmp("deposit", command, 7) == 0){
-            deposit(sockfd, frontNode, currAccount, inSession);
-        } else if (strncmp("withdraw", command, 8) == 0){
-            withdraw(sockfd, frontNode, currAccount, inSession);
-        } else if (strncmp("query", command, 5) == 0){
-            query(sockfd, frontNode, currAccount, inSession);
-        } else if (strncmp("end", command, 3) == 0){
-            inSession = end(sockfd, frontNode, currAccount, inSession);
-        } else if(strncmp("quit", command, 4) == 0){
-    	   printf("client quit, so check if other clients there\n");
-    	   break;
-	   } 
-    	
+            // printf("will SERVE\n");
+            if (strcmp(currAccount," ")!=0){
+                writeToClient(sockfd, "* * * Error, you already have an account in session * * *\n");
+            } else {
+                inSession = serveAcct(sockfd,  value, inSession);
+                if (inSession==1){
+                strcpy(currAccount,value);
+                }
+                printf("Successfully served, current acct serving is: %s\n",currAccount);
+            }
+        } else if (strcmp("deposit", command) == 0){
+            if(strcmp(value, " ")==0||strcmp(value,"")==0){
+                writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
+                continue;
+            }
+            if(isInSession(inSession, sockfd) == 1){
+                // printf("will DEPOSIT\n");
+                deposit(sockfd,  currAccount, inSession, value);
+            }
+        } else if (strcmp("withdraw", command) == 0){
+              if(strcmp(value, " ")==0||strcmp(value,"")==0){
+                writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
+                continue;
+            }
+             if(isInSession(inSession, sockfd) == 1){
+                // printf("will WITHDRAW\n");
+                withdraw(sockfd, currAccount, inSession, value);
+            }
+        } else if (strcmp("query", command) == 0){
+             
+            if(isInSession(inSession, sockfd) == 1){
+                // printf("will QUERY\n");
+                query(sockfd,  currAccount, inSession);
+            }
+        } else if (strcmp("end", command) == 0){
+            if(isInSession(inSession, sockfd) == 1){
+                inSession = end(sockfd, currAccount, inSession);
+                strcpy(currAccount, " ");
+            }
+        } else if(strcmp("quit", command) == 0){
+            // printf("will QUIT\n");
+    	    printf("client quit, so check if other clients there\n");
+            close(sockfd);
+            return;
+    	    // break;
+	    } 
+        
         memset(r_buff, 0, sizeof(r_buff));
         memset(w_buff, 0, sizeof(w_buff));
         memset(command, 0, sizeof(command));
         memset(value, 0, sizeof(value));
 
-    } 
-} 
-
-
-int serveAcct(int sockfd, bankAccount *frontNode, char * acctName, int inSession){
+    }
 
 }
-void deposit(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
-
-}
-void withdraw(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
-
-}
-void query(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
-
-}
-int end(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
-    
-}
-
-
-
 
 
 //Driver function
-int main() { 
+int main(int argc, char *argv[]) { 
 
 //------------------ANNAS NEW SHIT--------------------
+    numAccounts=0;
     int servSockFD;
     int clientSockFD;
     struct addrinfo request;
@@ -236,7 +405,7 @@ int main() {
     request.ai_next = NULL;
     struct addrinfo *result;
 
-    getaddrinfo(0,"9382", &request, &result);
+    getaddrinfo(0, argv[1] , &request, &result);
 
     if ((servSockFD = socket(result->ai_family, result->ai_socktype, result->ai_protocol) ) < 0 ){
         fprintf(stderr, "ERROR: Server socket could not be created: %s\n", strerror(errno));
@@ -263,12 +432,14 @@ int main() {
     printf("**Socket successfully accepted, shoudld be good to go\n");
 
 //------------------END ANNAS NEW SHIT----------------
-
+    pthread_mutex_init(&openAccLock, NULL);
 
     // Function for chatting between client and server
-    func(clientSockFD); 
+    func((void*)&clientSockFD); 
   
     // After chatting close the socket 
     close(clientSockFD); 
     close(servSockFD);
-} 
+    return 0;
+
+}

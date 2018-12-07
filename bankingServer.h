@@ -7,23 +7,32 @@ typedef struct bankAccount {
     double balance;   
     int inSessionFlag;
     struct bankAccount *next;
+    pthread_mutex_t lock;
 } bankAccount;
 
 
-//method prototypes in Server
+
+int isNumeric(char *str);
 bankAccount* createNode();
-void createAccount(char* token);
 void addNode(bankAccount **head, bankAccount * node);
+int isInSession(int inSession, int sockfd);
+void writeToClient(int sockfd, char* message);
+int acctExists(char* acctName);
 int alreadyExists(char *token);
 void printLL();
-void func(int sockfd);
+void printNode(bankAccount *node);
+
+int serveAcct(int sockfd, char * acctName, int inSession);
+void deposit(int sockfd, char* currAccount, int inSession, char *amount);
+void withdraw(int sockfd,  char* currAccount, int inSession, char *amount);
+void query(int sockfd,  char* currAccount, int inSession);
+int end(int sockfd, char* currAccount, int inSession);
+//method prototypes in Server
 
 
-int serveAcct(int sockfd, bankAccount *frontNode, char * acctName, int inSession);
-void deposit(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
-void withdraw(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
-void query(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
-int end(int sockfd, bankAccount *frontNode, char* currAccount, int inSession);
+void *func(void* args);
+
+
 
 
 #endif
