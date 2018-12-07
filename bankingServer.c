@@ -178,8 +178,6 @@ void printNode(bankAccount *node){
     printf("\nAccount Name: %s\nBalance: $%lf\ninSessionFlag: %d\n\n", node->accountName, node->balance, node->inSessionFlag);      
 }
 
-
-
 int serveAcct(int sockfd, char * acctName, int inSession){
     printf("Hey, in serve function\n");
     //first check if the given account exists, have a function that does that to be clean
@@ -377,7 +375,7 @@ void * func(void* args) {
             return;
     	    // break;
 	    } 
-        
+
         memset(r_buff, 0, sizeof(r_buff));
         memset(w_buff, 0, sizeof(w_buff));
         memset(command, 0, sizeof(command));
@@ -387,10 +385,8 @@ void * func(void* args) {
 
 }
 
-
 //Driver function
 int main(int argc, char *argv[]) { 
-
 //------------------ANNAS NEW SHIT--------------------
     numAccounts=0;
     int servSockFD;
