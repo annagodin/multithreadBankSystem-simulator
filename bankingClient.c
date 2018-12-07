@@ -174,19 +174,28 @@ int main(int argc, char *argv[]) {
       If socket(2) (or connect(2)) fails, we (close the socket
       and) try the next address. */
 
-   for (rp = result; rp != NULL; rp = rp->ai_next) {
-       sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-       if (sockfd == -1)
-           continue;
 
-       if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1){
-          printf("** Anna's socket successfully created\n");
-          break;                  /* Success */
+   
+      rp = result;
+      sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+      int count =0;
+      int constatus;
+      while (constatus = connect(sockfd, rp->ai_addr, rp->ai_addrlen) == -1){
+          printf("** Could not find server. Attempting to reconnect in 3 sec...\n");
+          close(sockfd);
+          sleep(3);
+          sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+          count++;
+          if (count>4)
+            break;
+
        }
-       printf("** Could not find server. Attempting to reconnect in 3 sec. . .\n");
-       sleep(3);
-       close(sockfd);
-   }
+       if (count>4 && constatus !=0){
+        printf("Could not connect, Goodbye\n");
+        return 1;
+       }  
+       
+
 
    if (rp == NULL) {               /* No address succeeded */
        fprintf(stderr, "ERROR: Could not connect\n");

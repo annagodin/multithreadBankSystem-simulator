@@ -107,7 +107,7 @@ int isInSession(int inSession, int sockfd){
     if (inSession==0){
         char w_buff[MAX];
         bzero(w_buff, MAX); 
-        strcpy(w_buff,"Error, you must be in [Service] mode to execute this command\n");
+        strcpy(w_buff,"* * * You are not currently in a service session * * *\n");
         write(sockfd, w_buff, sizeof(w_buff));
         return 0;
     } else {
@@ -372,6 +372,7 @@ void * func(void* args) {
             // printf("will QUIT\n");
     	    printf("client quit, so check if other clients there\n");
             if(isInSession(inSession, sockfd) == 1){
+                writeToClient(sockfd, "* * * Implicitly closing the active account session * * *\n");
                 inSession = end(sockfd, currAccount, inSession);
                 strcpy(currAccount, " ");
             }
@@ -391,7 +392,6 @@ void * func(void* args) {
 
 //Driver function
 int main(int argc, char *argv[]) { 
-//------------------ANNAS NEW SHIT--------------------
     numAccounts=0;
     int servSockFD;
     int clientSockFD;
@@ -423,15 +423,14 @@ int main(int argc, char *argv[]) {
     //setsockopt(servSockFD, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)); //based on his ex in class
 										   //should fix time lockout with binding
 
-    listen(servSockFD,5); // five connections can be queued
+    listen(servSockFD,8); // five connections can be queued
     printf("**Listening for connection\n");
     if((clientSockFD= accept(servSockFD, NULL, NULL)) < 0){
         fprintf(stderr, "ERROR: failed to accept: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    printf("**Socket successfully accepted, shoudld be good to go\n");
+    printf("**Socket successfully accepted\n");
 
-//------------------END ANNAS NEW SHIT----------------
     pthread_mutex_init(&openAccLock, NULL);
 
     // Function for chatting between client and server
