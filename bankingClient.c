@@ -32,7 +32,11 @@ void * readFromServer(void* args){
 			printf("\nFrom Server: '%s'\n", buff); 
 	   	memset(buff, 0, sizeof(buff));
 		}
-	    
+	   	
+		if(strncmp("InSession", buff, 9) == 0){
+			inServiceSession = 1;
+			printf("We are now in service mode!\n");
+		} 
 	}
 
 

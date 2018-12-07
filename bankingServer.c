@@ -177,7 +177,11 @@ void func(int sockfd){
             inSession = serveAcct(sockfd, frontNode, value, inSession);
             if (inSession==1){
                 strcpy(currAccount,value);
-            }
+	    }else{
+		bzero(w_buff, MAX);
+		strcpy(w_buff, "ERR: Service Failed.\n");
+		write(sockfd, w_buff, sizeof(w_buff));
+	    }
         } else if (strncmp("deposit", command, 7) == 0){
             deposit(sockfd, frontNode, currAccount, inSession);
         } else if (strncmp("withdraw", command, 8) == 0){
@@ -202,6 +206,19 @@ void func(int sockfd){
 
 int serveAcct(int sockfd, bankAccount *frontNode, char * acctName, int inSession){
 	
+	char w_buff[MAX];
+	
+	if(alreadyExists(acctName) == 0){
+		bzero(w_buff, MAX);
+		strcpy(w_buff, "Error: Account does not exist. Can't Service.\n");
+		write(sockfd, w_buff,sizeof(w_buff));
+		return 0;
+	}else{
+
+		bzero(w_buff, MAX);
+		strcpy(w_buff, "InSession\n");
+		write(sockfd, w_buff,sizeof(w_buff));
+	}	
 }
 void deposit(int sockfd, bankAccount *frontNode, char* currAccount, int inSession){
 
