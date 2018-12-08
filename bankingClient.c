@@ -12,13 +12,29 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <netinet/in.h>
+#include <sys/time.h>
+#include <signal.h>
 #define PORT 9382
 #define _GNU_SOURCE
 #define MAX 500 
 // #define SA struct sockaddr
 int exitClient = 0;
-
+int networkFD;
 //TO RUN: ./bankingClient machine.cs.rutgers.edu port
+
+
+// static void sigint_handler( int signo )
+// {
+//   char command[5] = "exit";
+//   printf( "Received Signal SIGNIT: Sending exit command to Server before Client dies. . .\n");
+
+//   if ( (write(networkFD, command, strlen(command) ) ) < 0){
+//          printf("- - - Sorry, your session has expired. - - -\n");
+//   }
+//   return;
+// }
+
+
 
 void * readFromServer(void* args){
 	char buff[MAX];
@@ -40,6 +56,7 @@ void * readFromServer(void* args){
 
 	printf("** Closing connection\n");
   close(networkSockFD);
+  pthread_exit(NULL);
   exit(1);
   return 0;
 	
@@ -50,6 +67,9 @@ void writeToServer(int sockfd) {
   char buff[MAX]; 
   int n; 
   for (;;) {
+    if (exitClient==1){
+      break;
+    }
     do {
 
   		if (valid==0){
@@ -204,6 +224,14 @@ int main(int argc, char *argv[]) {
 
      freeaddrinfo(result);
 
+
+      // networkFD = sockfd;
+      // struct sigaction signals;
+      // signals.sa_flags = 0;
+      // signals.sa_handler = sigint_handler; /* short form */
+      // sigemptyset( &signals.sa_mask );   /* no additional signals blocked */
+      // sigaction( SIGINT, &signals, 0 );
+
      printf("** Successfully connected to the server\n");
 
 //----------END NEW METHOD--------------------------
@@ -215,11 +243,11 @@ int main(int argc, char *argv[]) {
          exit(EXIT_FAILURE);
     }
 
-    pthread_detach(readServer);
+    
 
     //function for writing to server
     writeToServer(sockfd);
-
+    pthread_join(readServer,NULL);
     //close the socket
     close(sockfd);
 
