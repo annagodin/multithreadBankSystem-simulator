@@ -11,6 +11,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <pthread.h> 
+#include <signal.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include "bankingServer.h"
 
@@ -24,6 +26,8 @@ typedef int bool;
 #define true 1
 #define false 0
 
+int sockfd;
+void sigint_handler(int sig); /*prototype*/
 int numAccounts; //counter for number accounts created during session
 pthread_mutex_t openAccLock;
 
@@ -121,6 +125,17 @@ void writeToClient(int sockfd, char* message){
     bzero(w_buff, MAX); 
     strcpy(w_buff,message);
     write(sockfd, w_buff, sizeof(w_buff));
+
+
+   struct sigaction sa;
+   sa.sa_handler = sigint_handler;
+   sa.sa_flags = 0;
+   sigemptyset(&sa.sa_mask);
+
+   if(sigaction(SIGINT, &sa, NULL) == -1){
+	perror("sigaction");
+	exit(1);
+   }
 }
 
 int acctExists(char* acctName){
@@ -255,9 +270,23 @@ int end(int sockfd,  char* currAccount, int inSession){
 }
 
 
+void sigint_handler(int sig)
+{
+
+	char buff[MAX];
+	bzero(buff, MAX);
+	strcpy(buff, "CtrlC");
+	write(sockfd, buff, sizeof(buff));
+	printf("\n");
+	exit(0);
+
+}
+
+
+
 //Function designed for chat between client and server
 void * func(void* args) { 
-    int sockfd = *(int*)args;
+    sockfd = *(int*)args;
     int inSession=0; 
     char r_buff[MAX]; 
     char w_buff[MAX];
@@ -270,6 +299,10 @@ void * func(void* args) {
     char currAccount[260];
     strcpy(currAccount," ");
     // infinite loop for chat
+   
+
+    writeToClient(sockfd, "");
+
     for (;;) { 
         bzero(r_buff, MAX); 
 
@@ -283,7 +316,6 @@ void * func(void* args) {
         printf("\n----------------\ncommand: %s\n", command);
         printf("value: %s\n---------------\n\n", value );
     	
-       
     	//if msg contains "create" then server will create an account
     	if (strcmp("create", command) == 0){
             pthread_mutex_lock(&openAccLock);

@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <signal.h>
+#include <errno.h>
 #include <pthread.h>
 #include <netinet/in.h>
 #define PORT 9382
@@ -17,7 +19,8 @@
 #define MAX 500 
 // #define SA struct sockaddr
 int exitClient = 0;
-
+//void sigint_handler(int sig); /*prototype*/
+int sockfd;
 //TO RUN: ./bankingClient machine.cs.rutgers.edu port
 
 void * readFromServer(void* args){
@@ -27,11 +30,23 @@ void * readFromServer(void* args){
 	int status;
 	for(;;){
 		status = read(networkSockFD, buff, sizeof(buff));
+		//buff[strlen(buff)-1]='\0';
+		
+		if(strcmp("CtrlC", buff) == 0){
+			printf("Server hit Ctrl C \n");
+			printf("**Closing connection Sighandled!\n");
+			close(networkSockFD);
+			exit(1);
+			return 0;
+		}
 		buff[strlen(buff)-1]='\0';
+
 		if (status>0){
 			printf("\n%s\n", buff); 
 	   	memset(buff, 0, sizeof(buff));
 		}
+
+		
 	    if(exitClient==1){
         break;
       }
@@ -45,12 +60,22 @@ void * readFromServer(void* args){
 	
 }
 
+
+
+
+
 void writeToServer(int sockfd) {
   int valid = 1; //bool valid input flag
   char buff[MAX]; 
-  int n; 
+  int n;
+
+
+ 
   for (;;) {
-    do {
+    
+	
+
+       do {
 
   		if (valid==0){
   			printf("Invalid command, please try again: ");
@@ -119,6 +144,12 @@ void writeToServer(int sockfd) {
 			
 	} while (valid==0);
 
+		if(strcmp("CtrlC", buff) == 0){
+			printf("Server ctrl C caught \n");
+			printf("client session closing!\n");
+			exit(0);
+		}		
+
 		write(sockfd, buff, sizeof(buff)); 
 		bzero(buff, sizeof(buff)); 
 		sleep(2);
@@ -129,7 +160,7 @@ void writeToServer(int sockfd) {
 
 
 int main(int argc, char *argv[]) { 
-    int sockfd;
+   // int sockfd;	//commented out to make a global var
    // int connfd; 
    // struct sockaddr_in servaddr, cli; 
   
