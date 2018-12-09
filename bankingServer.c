@@ -14,6 +14,8 @@
 #include <signal.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <sys/time.h>
+#include <signal.h>
 #include "bankingServer.h"
 
 
@@ -111,7 +113,7 @@ int isInSession(int inSession, int sockfd){
     if (inSession==0){
         char w_buff[MAX];
         bzero(w_buff, MAX); 
-        strcpy(w_buff,"Error, you must be in [Service] mode to execute this command\n");
+        strcpy(w_buff,"* * * You are not currently in a service session * * *\n");
         write(sockfd, w_buff, sizeof(w_buff));
         return 0;
     } else {
@@ -257,7 +259,7 @@ void query(int sockfd,  char* currAccount, int inSession){
     printf("Hey, in query function\n");
     char buff[MAX];
     bankAccount *acct = findAcct(currAccount);
-    sprintf(buff,"Account Name: %s\nBalance: $%lf\ninSessionFlag: %d\n", acct->accountName, acct->balance, acct->inSessionFlag);
+    sprintf(buff,"Balance: $%lf\n", acct->balance);
     writeToClient(sockfd,buff);
 }
 int end(int sockfd,  char* currAccount, int inSession){
@@ -318,6 +320,10 @@ void * func(void* args) {
     	
     	//if msg contains "create" then server will create an account
     	if (strcmp("create", command) == 0){
+            if(isInSession(inSession, sockfd) == 1){
+                 writeToClient(sockfd, "* * * Error, you cannot create an account while in a service session! * * *\n");
+                continue;
+            }
             pthread_mutex_lock(&openAccLock);
     		//handle create account
     		//ERR check: if account already created
@@ -367,9 +373,12 @@ void * func(void* args) {
             } else {
                 inSession = serveAcct(sockfd,  value, inSession);
                 if (inSession==1){
-                strcpy(currAccount,value);
+                    strcpy(currAccount,value);
+                    printf("Successfully served, current acct serving is: [%s]\n",currAccount);
+                } else if (inSession==0){
+                    printf("Account not successully served\n");
                 }
-                printf("Successfully served, current acct serving is: %s\n",currAccount);
+                
             }
         } else if (strcmp("deposit", command) == 0){
             if(strcmp(value, " ")==0||strcmp(value,"")==0){
@@ -402,11 +411,13 @@ void * func(void* args) {
             }
         } else if(strcmp("quit", command) == 0){
             // printf("will QUIT\n");
-    	    printf("client quit, so check if other clients there\n");
+    	   //printf("client quit, so check if other clients there\n");
             if(isInSession(inSession, sockfd) == 1){
+                writeToClient(sockfd, "* * * Implicitly closing the active account session * * *\n");
                 inSession = end(sockfd, currAccount, inSession);
                 strcpy(currAccount, " ");
             }
+            writeToClient(sockfd, "* * * Closing this client connection * * *\n");  
             close(sockfd);
             return;
     	    // break;
@@ -423,7 +434,6 @@ void * func(void* args) {
 
 //Driver function
 int main(int argc, char *argv[]) { 
-//------------------ANNAS NEW SHIT--------------------
     numAccounts=0;
     int servSockFD;
     int clientSockFD;
@@ -454,24 +464,55 @@ int main(int argc, char *argv[]) {
     setsockopt(servSockFD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
     //setsockopt(servSockFD, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)); //based on his ex in class
 										   //should fix time lockout with binding
-
-    listen(servSockFD,5); // five connections can be queued
-    printf("**Listening for connection\n");
-    if((clientSockFD= accept(servSockFD, NULL, NULL)) < 0){
-        fprintf(stderr, "ERROR: failed to accept: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    printf("**Socket successfully accepted, shoudld be good to go\n");
-
-//------------------END ANNAS NEW SHIT----------------
     pthread_mutex_init(&openAccLock, NULL);
+    listen(servSockFD,10); // ten connections can be queued
+   
+
+    printf("**Begin listening for connections\n");
+    void* clientSocketThreadArg;
+    pthread_t clientID;
+    while(1){
+        
+        if( (clientSockFD = accept(servSockFD, NULL, NULL)) < 0){
+            printf("ERROR: failed to accept socket: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        clientSocketThreadArg = (void*)malloc(sizeof(int));
+        memcpy(clientSocketThreadArg, &clientSockFD, sizeof(int));
+
+        // create thread for client - service
+        if (pthread_create(&clientID, NULL, &func, clientSocketThreadArg) != 0){
+            printf("ERROR: Can't create new client thread: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        if (pthread_detach(clientID) != 0){
+            printf("ERROR: Could not detach new client thread: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        printf("**Accepted a connection and detached a thread\n");
+
+    }
+
+//------old stuff-----------
+    // if((clientSockFD = accept(servSockFD, NULL, NULL)) < 0){
+    //     fprintf(stderr, "ERROR: failed to accept: %s\n", strerror(errno));
+    //     exit(EXIT_FAILURE);
+    // }
+    // printf("**Socket successfully accepted\n");
+
 
     // Function for chatting between client and server
-    func((void*)&clientSockFD); 
+    // func((void*)&clientSockFD); 
+//----------old stuff----------------
+    
   
     // After chatting close the socket 
-    close(clientSockFD); 
-    close(servSockFD);
+    
+
+    // close(clientSockFD); 
+    // close(servSockFD);
     return 0;
 
 }

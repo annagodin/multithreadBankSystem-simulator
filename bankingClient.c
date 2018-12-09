@@ -14,6 +14,8 @@
 #include <errno.h>
 #include <pthread.h>
 #include <netinet/in.h>
+#include <sys/time.h>
+#include <signal.h>
 #define PORT 9382
 #define _GNU_SOURCE
 #define MAX 500 
@@ -21,7 +23,22 @@
 int exitClient = 0;
 //void sigint_handler(int sig); /*prototype*/
 int sockfd;
+int networkFD;
 //TO RUN: ./bankingClient machine.cs.rutgers.edu port
+
+
+// static void sigint_handler( int signo )
+// {
+//   char command[5] = "exit";
+//   printf( "Received Signal SIGNIT: Sending exit command to Server before Client dies. . .\n");
+
+//   if ( (write(networkFD, command, strlen(command) ) ) < 0){
+//          printf("- - - Sorry, your session has expired. - - -\n");
+//   }
+//   return;
+// }
+
+
 
 void * readFromServer(void* args){
 	char buff[MAX];
@@ -55,6 +72,7 @@ void * readFromServer(void* args){
 
 	printf("** Closing connection\n");
   close(networkSockFD);
+  pthread_exit(NULL);
   exit(1);
   return 0;
 	
@@ -71,11 +89,12 @@ void writeToServer(int sockfd) {
 
 
  
-  for (;;) {
-    
-	
+  for (;;) {    
 
-       do {
+    	if (exitClient==1){
+      	break;
+       }
+    	do {
 
   		if (valid==0){
   			printf("Invalid command, please try again: ");
@@ -205,19 +224,28 @@ int main(int argc, char *argv[]) {
       If socket(2) (or connect(2)) fails, we (close the socket
       and) try the next address. */
 
-   for (rp = result; rp != NULL; rp = rp->ai_next) {
-       sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-       if (sockfd == -1)
-           continue;
 
-       if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1){
-          printf("** Anna's socket successfully created\n");
-          break;                  /* Success */
+   
+      rp = result;
+      sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+      int count =0;
+      int constatus;
+      while (constatus = connect(sockfd, rp->ai_addr, rp->ai_addrlen) == -1){
+          printf("** Could not find server. Attempting to reconnect in 3 sec...\n");
+          close(sockfd);
+          sleep(3);
+          sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+          count++;
+          if (count>4)
+            break;
+
        }
-       printf("** Could not find server. Attempting to reconnect in 3 sec. . .\n");
-       sleep(3);
-       close(sockfd);
-   }
+       if (count>4 && constatus !=0){
+        printf("Could not connect, Goodbye\n");
+        return 1;
+       }  
+       
+
 
    if (rp == NULL) {               /* No address succeeded */
        fprintf(stderr, "ERROR: Could not connect\n");
@@ -225,6 +253,14 @@ int main(int argc, char *argv[]) {
      }
 
      freeaddrinfo(result);
+
+
+      // networkFD = sockfd;
+      // struct sigaction signals;
+      // signals.sa_flags = 0;
+      // signals.sa_handler = sigint_handler; /* short form */
+      // sigemptyset( &signals.sa_mask );   /* no additional signals blocked */
+      // sigaction( SIGINT, &signals, 0 );
 
      printf("** Successfully connected to the server\n");
 
@@ -237,11 +273,11 @@ int main(int argc, char *argv[]) {
          exit(EXIT_FAILURE);
     }
 
-    pthread_detach(readServer);
+    
 
     //function for writing to server
     writeToServer(sockfd);
-
+    pthread_join(readServer,NULL);
     //close the socket
     close(sockfd);
 
