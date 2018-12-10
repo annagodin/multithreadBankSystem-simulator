@@ -362,6 +362,7 @@ void * func(void* args) {
             close(sockfd);
             return;
         }
+        ret = sem_wait(&sem);
         // print buffer which contains the client contents
         printf("From client [%lu]: %s\n", sockfd, r_buff); 
          
@@ -371,7 +372,7 @@ void * func(void* args) {
     	
     	//if msg contains "create" then server will create an account
     	if (strcmp("create", command) == 0){
-            ret = sem_wait(&sem);
+            
             if(isInSession(inSession, sockfd) == 1){
                  writeToClient(sockfd, "* * * Error, you cannot create an account while in a service session! * * *\n");
                 continue;
@@ -415,7 +416,7 @@ void * func(void* args) {
                 	
             }	     
         } else if (strcmp("serve", command) == 0){
-             ret = sem_wait(&sem);
+             // ret = sem_wait(&sem);
              if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME ACCOUNT * * *\n");
                 continue;
@@ -434,7 +435,7 @@ void * func(void* args) {
                 
             }
         } else if (strcmp("deposit", command) == 0){
-            ret = sem_wait(&sem);
+            // ret = sem_wait(&sem);
             if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
                 continue;
@@ -444,7 +445,7 @@ void * func(void* args) {
                 deposit(sockfd,  currAccount, inSession, value);
             }
         } else if (strcmp("withdraw", command) == 0){
-              ret = sem_wait(&sem);
+              // ret = sem_wait(&sem);
               if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
                 continue;
@@ -454,13 +455,13 @@ void * func(void* args) {
                 withdraw(sockfd, currAccount, inSession, value);
             }
         } else if (strcmp("query", command) == 0){
-            ret = sem_wait(&sem); 
+            // ret = sem_wait(&sem); 
             if(isInSession(inSession, sockfd) == 1){
                 // printf("will QUERY\n");
                 query(sockfd,  currAccount, inSession);
             }
         } else if (strcmp("end", command) == 0){
-            ret = sem_wait(&sem);
+            // ret = sem_wait(&sem);
             if(isInSession(inSession, sockfd) == 1){
                 inSession = end(sockfd, currAccount, inSession);
                 strcpy(currAccount, " ");
@@ -498,10 +499,11 @@ void * printDiagnostics(void* args){
             printf("There are no accounts in the system yet\n");
         }else {
             printBankAccounts();
+            sleep(5);
         }
-       
+       ret = sem_post(&sem); 
         sleep(15);
-        ret = sem_post(&sem); 
+        
     }
     
 }
