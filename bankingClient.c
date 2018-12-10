@@ -50,12 +50,13 @@ void * readFromServer(void* args){
 		//buff[strlen(buff)-1]='\0';
 		
 		if(strcmp("CtrlC", buff) == 0){
-			printf("Server hit Ctrl C \n");
+			printf("\nServer hit Ctrl C \n");
 			printf("**Closing connection Sighandled!\n");
 			close(networkSockFD);
 			exit(1);
 			return 0;
 		}
+
 		buff[strlen(buff)-1]='\0';
 
 		if (status>0){
@@ -263,6 +264,7 @@ int main(int argc, char *argv[]) {
       // sigaction( SIGINT, &signals, 0 );
 
      printf("** Successfully connected to the server\n");
+     // printf("sockfd: %lu\n", sockfd);
 
 //----------END NEW METHOD--------------------------
 

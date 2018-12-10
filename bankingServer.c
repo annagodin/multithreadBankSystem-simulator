@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <pthread.h> 
+#include <semaphore.h>
 #include <signal.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -28,13 +29,14 @@ typedef int bool;
 #define true 1
 #define false 0
 
-int sockfd;
+
 void sigint_handler(int sig); /*prototype*/
 int numAccounts; //counter for number accounts created during session
 pthread_mutex_t openAccLock;
+pthread_mutex_t clientInfoLock;
 
 bankAccount * frontNode = NULL;
-
+clientInfo * clientInfoFront = NULL;
 
 
 //struct account *bankAccounts;
@@ -43,6 +45,8 @@ bankAccount * frontNode = NULL;
 //don't forget to free before disconnecting curr sessions
 //struct account *bankAccounts = (struct account *)malloc(sizeof(struct account));
 //struct account bankAccounts[20]; //test bc lazy
+
+
 
 
 int isNumeric(char*str){
@@ -91,6 +95,7 @@ bankAccount* createNode(char * token){
     strcpy(temp->accountName, token);
     temp->balance = 0;
     temp->inSessionFlag = 0;
+    pthread_mutex_init(&temp->lock, NULL);
 	return temp;
 }
 
@@ -108,6 +113,20 @@ void addNode(bankAccount** head, bankAccount * node){
 	}
 }
 
+
+void addClientNode(clientInfo** head, clientInfo * node){
+    clientInfo *p = *head;
+    if(*head == NULL){
+        *head = node;
+    }else{
+        
+        while(p->next != NULL){
+            p = p->next;
+        }
+        p->next = node;
+    }
+}
+
 //checks if the client is in a current session
 int isInSession(int inSession, int sockfd){
     if (inSession==0){
@@ -123,21 +142,22 @@ int isInSession(int inSession, int sockfd){
 
 //writes given message to the client
 void writeToClient(int sockfd, char* message){
+    // printf("hey, were here\n");
     char w_buff[MAX];
     bzero(w_buff, MAX); 
     strcpy(w_buff,message);
     write(sockfd, w_buff, sizeof(w_buff));
 
 
-   struct sigaction sa;
-   sa.sa_handler = sigint_handler;
-   sa.sa_flags = 0;
-   sigemptyset(&sa.sa_mask);
+    struct sigaction sa;
+    sa.sa_handler = sigint_handler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
 
-   if(sigaction(SIGINT, &sa, NULL) == -1){
-	perror("sigaction");
-	exit(1);
-   }
+    if(sigaction(SIGINT, &sa, NULL) == -1){
+	   perror("sigaction");
+	   exit(1);
+    }
 }
 
 int acctExists(char* acctName){
@@ -181,13 +201,23 @@ int alreadyExists(char *token){
 }
 
 //print bankAccount structs as a test
-void printLL(){
+void printBankAccounts(){
 	printf("\n");
     bankAccount *temp = frontNode;
 	while(temp != NULL){
 		printf("Account Name: %s\nBalance: $%lf\ninSessionFlag: %d\n\n", temp->accountName, temp->balance, temp->inSessionFlag);
 		temp = temp->next;
 	}
+}
+
+void printClientInfo(){
+    printf("\n");
+    printf("Client ID's and stuff:\n");
+    clientInfo *temp = clientInfoFront;
+    while(temp != NULL){
+        printf("sockfd: %d\nthreadID: %lu\n\n", temp->sockfd, temp->threadID);
+        temp = temp->next;
+    }
 }
 
 //prints note in client, for debugging
@@ -278,8 +308,13 @@ void sigint_handler(int sig)
 	char buff[MAX];
 	bzero(buff, MAX);
 	strcpy(buff, "CtrlC");
-	write(sockfd, buff, sizeof(buff));
-	printf("\n");
+    clientInfo * ptr = clientInfoFront;
+    while (ptr!=NULL){
+        write(ptr->sockfd, buff, sizeof(buff));
+        ptr=ptr->next;
+    }
+	// write(sockfd, buff, sizeof(buff));
+	// printf("\n");
 	exit(0);
 
 }
@@ -288,6 +323,8 @@ void sigint_handler(int sig)
 
 //Function designed for chat between client and server
 void * func(void* args) { 
+    // printf("pthread id : %lu\n", pthread_self());
+    int sockfd;
     sockfd = *(int*)args;
     int inSession=0; 
     char r_buff[MAX]; 
@@ -309,10 +346,15 @@ void * func(void* args) {
         bzero(r_buff, MAX); 
 
         // read the message from client and copy it in buffer
-	    read(sockfd, r_buff, sizeof(r_buff));
-
+	    int status;
+        status = read(sockfd, r_buff, sizeof(r_buff));
+        printf("status is: %d\n", status);
+        if(status<=0){
+            printf("Error reading from the Client, aborting\n");
+            return;
+        }
         // print buffer which contains the client contents
-        printf("From client: %s\n", r_buff); 
+        printf("From client [%lu]: %s\n", sockfd, r_buff); 
          
         sscanf(r_buff, "%s %s",command, value);
         printf("\n----------------\ncommand: %s\n", command);
@@ -417,7 +459,8 @@ void * func(void* args) {
                 inSession = end(sockfd, currAccount, inSession);
                 strcpy(currAccount, " ");
             }
-            writeToClient(sockfd, "* * * Closing this client connection * * *\n");  
+            printf("Client with threadID [%lu] has disconnected\n", pthread_self());
+            writeToClient(sockfd, "* * * Closing this client connection * * *\n");
             close(sockfd);
             return;
     	    // break;
@@ -465,6 +508,7 @@ int main(int argc, char *argv[]) {
     //setsockopt(servSockFD, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)); //based on his ex in class
 										   //should fix time lockout with binding
     pthread_mutex_init(&openAccLock, NULL);
+    pthread_mutex_init(&clientInfoLock, NULL);
     listen(servSockFD,10); // ten connections can be queued
    
 
@@ -472,11 +516,14 @@ int main(int argc, char *argv[]) {
     void* clientSocketThreadArg;
     pthread_t clientID;
     while(1){
-        
+        clientInfo * node = malloc(sizeof(clientInfo));
+
         if( (clientSockFD = accept(servSockFD, NULL, NULL)) < 0){
             printf("ERROR: failed to accept socket: %s\n", strerror(errno));
             exit(EXIT_FAILURE);
         }
+
+        node->sockfd = clientSockFD;
 
         clientSocketThreadArg = (void*)malloc(sizeof(int));
         memcpy(clientSocketThreadArg, &clientSockFD, sizeof(int));
@@ -487,12 +534,15 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        node->threadID = clientID;
         if (pthread_detach(clientID) != 0){
             printf("ERROR: Could not detach new client thread: %s\n", strerror(errno));
             exit(EXIT_FAILURE);
         }
-        printf("**Accepted a connection and detached a thread\n");
 
+        addClientNode(&clientInfoFront,node);  
+        printf("**Accepted a connection and detached a thread, sockfd: [%lu]\n", clientSocketThreadArg);
+        printClientInfo();
     }
 
 //------old stuff-----------

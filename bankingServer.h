@@ -10,16 +10,23 @@ typedef struct bankAccount {
     pthread_mutex_t lock;
 } bankAccount;
 
+typedef struct clientInfo {
+	int sockfd;
+	pthread_t threadID;
+	struct clientInfo * next;
+} clientInfo;
 
 
 int isNumeric(char *str);
 bankAccount* createNode();
 void addNode(bankAccount **head, bankAccount * node);
+void addClientNode(clientInfo** head, clientInfo * node);
 int isInSession(int inSession, int sockfd);
 void writeToClient(int sockfd, char* message);
 int acctExists(char* acctName);
 int alreadyExists(char *token);
-void printLL();
+void printClientInfo();
+void printBankAccounts();
 void printNode(bankAccount *node);
 
 int serveAcct(int sockfd, char * acctName, int inSession);
