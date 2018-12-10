@@ -38,8 +38,12 @@ pthread_mutex_t clientInfoLock;
 bankAccount * frontNode = NULL;
 clientInfo * clientInfoFront = NULL;
 
+sem_t sem;
+int pshared;
+int ret;
+int value;
 
-//struct account *bankAccounts;
+
 
 //create temp array of structs to hold accounts for that session
 //don't forget to free before disconnecting curr sessions
@@ -155,7 +159,7 @@ void writeToClient(int sockfd, char* message){
     sigemptyset(&sa.sa_mask);
 
     if(sigaction(SIGINT, &sa, NULL) == -1){
-	   perror("sigaction");
+	   perror("Sigaction Error");
 	   exit(1);
     }
 }
@@ -202,11 +206,14 @@ int alreadyExists(char *token){
 
 //print bankAccount structs as a test
 void printBankAccounts(){
-	printf("\n");
+    printf("NAME\tBALANCE\t\tSESSION FLAG\n");
     bankAccount *temp = frontNode;
 	while(temp != NULL){
-		printf("Account Name: %s\nBalance: $%lf\ninSessionFlag: %d\n\n", temp->accountName, temp->balance, temp->inSessionFlag);
-		temp = temp->next;
+        if(temp->inSessionFlag==1)
+            printf("%s\t$%lf\tIN SERVICE\n", temp->accountName, temp->balance);
+		else
+            printf("%s\t$%lf\n", temp->accountName, temp->balance);
+        temp = temp->next;
 	}
 }
 
@@ -226,7 +233,7 @@ void printNode(bankAccount *node){
 }
 
 int serveAcct(int sockfd, char * acctName, int inSession){
-    printf("Hey, in serve function\n");
+    // printf("Hey, in serve function\n");
     //first check if the given account exists, have a function that does that to be clean
     if(acctExists(acctName)==0){
         char buff[MAX];
@@ -247,7 +254,7 @@ int serveAcct(int sockfd, char * acctName, int inSession){
     }
 }
 void deposit(int sockfd, char* currAccount, int inSession, char * amount){
-    printf("Hey, in deposit function\n");
+    // printf("Hey, in deposit function\n");
     if(isNumeric(amount)==0){
          writeToClient(sockfd,"* * * Error, amount entered must be NUMERIC * * *\n");
          return;
@@ -265,7 +272,7 @@ void deposit(int sockfd, char* currAccount, int inSession, char * amount){
     }
 }
 void withdraw(int sockfd, char* currAccount, int inSession, char * amount){
-    printf("Hey, in withdraw function\n");
+    // printf("Hey, in withdraw function\n");
     bankAccount *acct = findAcct(currAccount);
     if(isNumeric(amount)==0){
          writeToClient(sockfd,"* * * Error, amount entered must be NUMERIC * * *\n");
@@ -286,14 +293,14 @@ void withdraw(int sockfd, char* currAccount, int inSession, char * amount){
     }
 }
 void query(int sockfd,  char* currAccount, int inSession){
-    printf("Hey, in query function\n");
+    // printf("Hey, in query function\n");
     char buff[MAX];
     bankAccount *acct = findAcct(currAccount);
     sprintf(buff,"Balance: $%lf\n", acct->balance);
     writeToClient(sockfd,buff);
 }
 int end(int sockfd,  char* currAccount, int inSession){
-    printf("Hey, in end function\n");
+    // printf("Hey, in end function\n");
     bankAccount *acct = findAcct(currAccount);
     acct->inSessionFlag=0;
     writeToClient(sockfd,"* * * Successfully ENDED service session * * *\n");
@@ -301,10 +308,7 @@ int end(int sockfd,  char* currAccount, int inSession){
     return 0;   
 }
 
-
-void sigint_handler(int sig)
-{
-
+void sigint_handler(int sig) {
 	char buff[MAX];
 	bzero(buff, MAX);
 	strcpy(buff, "CtrlC");
@@ -313,10 +317,7 @@ void sigint_handler(int sig)
         write(ptr->sockfd, buff, sizeof(buff));
         ptr=ptr->next;
     }
-	// write(sockfd, buff, sizeof(buff));
-	// printf("\n");
 	exit(0);
-
 }
 
 
@@ -348,20 +349,29 @@ void * func(void* args) {
         // read the message from client and copy it in buffer
 	    int status;
         status = read(sockfd, r_buff, sizeof(r_buff));
-        printf("status is: %d\n", status);
+        // printf("status is: %d\n", status);
         if(status<=0){
-            printf("Error reading from the Client, aborting\n");
+            printf("Error reading from the Client, aborting this connection\n");
+            if(isInSession(inSession, sockfd) == 1){
+                writeToClient(sockfd, "* * * Implicitly closing the active account session * * *\n");
+                inSession = end(sockfd, currAccount, inSession);
+                strcpy(currAccount, " ");
+            }
+            printf("Client with threadID [%lu] has disconnected\n", pthread_self());
+            writeToClient(sockfd, "* * * Closing this client connection * * *\n");
+            close(sockfd);
             return;
         }
         // print buffer which contains the client contents
         printf("From client [%lu]: %s\n", sockfd, r_buff); 
          
         sscanf(r_buff, "%s %s",command, value);
-        printf("\n----------------\ncommand: %s\n", command);
+        printf("----------------\ncommand: %s\n", command);
         printf("value: %s\n---------------\n\n", value );
     	
     	//if msg contains "create" then server will create an account
     	if (strcmp("create", command) == 0){
+            ret = sem_wait(&sem);
             if(isInSession(inSession, sockfd) == 1){
                  writeToClient(sockfd, "* * * Error, you cannot create an account while in a service session! * * *\n");
                 continue;
@@ -405,6 +415,7 @@ void * func(void* args) {
                 	
             }	     
         } else if (strcmp("serve", command) == 0){
+             ret = sem_wait(&sem);
              if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME ACCOUNT * * *\n");
                 continue;
@@ -423,6 +434,7 @@ void * func(void* args) {
                 
             }
         } else if (strcmp("deposit", command) == 0){
+            ret = sem_wait(&sem);
             if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
                 continue;
@@ -432,6 +444,7 @@ void * func(void* args) {
                 deposit(sockfd,  currAccount, inSession, value);
             }
         } else if (strcmp("withdraw", command) == 0){
+              ret = sem_wait(&sem);
               if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
                 continue;
@@ -441,12 +454,13 @@ void * func(void* args) {
                 withdraw(sockfd, currAccount, inSession, value);
             }
         } else if (strcmp("query", command) == 0){
-             
+            ret = sem_wait(&sem); 
             if(isInSession(inSession, sockfd) == 1){
                 // printf("will QUERY\n");
                 query(sockfd,  currAccount, inSession);
             }
         } else if (strcmp("end", command) == 0){
+            ret = sem_wait(&sem);
             if(isInSession(inSession, sockfd) == 1){
                 inSession = end(sockfd, currAccount, inSession);
                 strcpy(currAccount, " ");
@@ -473,6 +487,23 @@ void * func(void* args) {
 
     }
 
+}
+
+//i think this is right???
+void * printDiagnostics(void* args){
+    
+    while(1){
+
+        if(numAccounts==0){
+            printf("There are no accounts in the system yet\n");
+        }else {
+            printBankAccounts();
+        }
+       
+        sleep(15);
+        ret = sem_post(&sem); 
+    }
+    
 }
 
 //Driver function
@@ -509,12 +540,30 @@ int main(int argc, char *argv[]) {
 										   //should fix time lockout with binding
     pthread_mutex_init(&openAccLock, NULL);
     pthread_mutex_init(&clientInfoLock, NULL);
+
+
+    /* initialize a private semaphore */
+    pshared = 0;
+    value = 0;
+    ret = sem_init(&sem, pshared, value); 
+
+
     listen(servSockFD,10); // ten connections can be queued
    
 
     printf("**Begin listening for connections\n");
     void* clientSocketThreadArg;
     pthread_t clientID;
+    pthread_t printDiag;
+
+
+    //thread to do all da diagnostic shiz
+    if (pthread_create(&printDiag, NULL, &printDiagnostics, NULL) != 0){
+            printf("ERROR: Can't create new diagnostic thread:%s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+    }
+
+    //infinite loop to accept connections and spawn threads
     while(1){
         clientInfo * node = malloc(sizeof(clientInfo));
 

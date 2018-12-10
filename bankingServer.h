@@ -28,6 +28,7 @@ int alreadyExists(char *token);
 void printClientInfo();
 void printBankAccounts();
 void printNode(bankAccount *node);
+void * printDiagnostics(void* args);
 
 int serveAcct(int sockfd, char * acctName, int inSession);
 void deposit(int sockfd, char* currAccount, int inSession, char *amount);
@@ -38,8 +39,6 @@ int end(int sockfd, char* currAccount, int inSession);
 
 
 void *func(void* args);
-
-
 
 
 #endif
