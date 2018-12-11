@@ -27,17 +27,6 @@ int networkFD;
 //TO RUN: ./bankingClient machine.cs.rutgers.edu port
 
 
-// static void sigint_handler( int signo )
-// {
-//   char command[5] = "exit";
-//   printf( "Received Signal SIGNIT: Sending exit command to Server before Client dies. . .\n");
-
-//   if ( (write(networkFD, command, strlen(command) ) ) < 0){
-//          printf("- - - Sorry, your session has expired. - - -\n");
-//   }
-//   return;
-// }
-
 
 
 void * readFromServer(void* args){
@@ -51,7 +40,7 @@ void * readFromServer(void* args){
 		
 		if(strcmp("CtrlC", buff) == 0){
 			printf("\nServer hit Ctrl C \n");
-			printf("**Closing connection Sighandled!\n");
+			printf("** Closing connection Sig-handled!\n");
 			close(networkSockFD);
 			exit(1);
 			return 0;
@@ -165,8 +154,8 @@ void writeToServer(int sockfd) {
 	} while (valid==0);
 
 		if(strcmp("CtrlC", buff) == 0){
-			printf("Server ctrl C caught \n");
-			printf("client session closing!\n");
+			printf("Server Ctrl C caught \n");
+			printf("Client session closing!\n");
 			exit(0);
 		}		
 
@@ -242,14 +231,14 @@ int main(int argc, char *argv[]) {
 
        }
        if (count>4 && constatus !=0){
-        printf("Could not connect, Goodbye\n");
+        printf("** Timed out: could not connect, Goodbye\n");
         return 1;
        }  
        
 
 
    if (rp == NULL) {               /* No address succeeded */
-       fprintf(stderr, "ERROR: Could not connect\n");
+       fprintf(stderr, "** ERROR: Could not connect\n");
        exit(EXIT_FAILURE);
      }
 
@@ -271,7 +260,7 @@ int main(int argc, char *argv[]) {
      pthread_t readServer;
 
     if (pthread_create(&readServer, NULL, &readFromServer, (void*)&sockfd ) != 0){
-         fprintf(stderr, "ERROR: Can't create server reading thread: %s\n", strerror(errno));
+         fprintf(stderr, "** ERROR: Can't create server reading thread: %s\n", strerror(errno));
          exit(EXIT_FAILURE);
     }
 

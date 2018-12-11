@@ -341,7 +341,7 @@ void * func(void* args) {
     // infinite loop for chat
    
 
-    writeToClient(sockfd, "");
+    // writeToClient(sockfd, "");
 
     for (;;) { 
         bzero(r_buff, MAX); 
@@ -362,19 +362,25 @@ void * func(void* args) {
             close(sockfd);
             return;
         }
+
+        int blah;
         ret = sem_wait(&sem);
+        sem_getvalue(&sem, &blah);
+        // printf("semval: %d\n", blah);
+
         // print buffer which contains the client contents
         printf("From client [%lu]: %s\n", sockfd, r_buff); 
          
         sscanf(r_buff, "%s %s",command, value);
-        printf("----------------\ncommand: %s\n", command);
-        printf("value: %s\n---------------\n\n", value );
+        // printf("----------------\ncommand: %s\n", command);
+        // printf("value: %s\n---------------\n\n", value );
     	
     	//if msg contains "create" then server will create an account
     	if (strcmp("create", command) == 0){
             
             if(isInSession(inSession, sockfd) == 1){
                  writeToClient(sockfd, "* * * Error, you cannot create an account while in a service session! * * *\n");
+               ret = sem_post(&sem);
                 continue;
             }
             pthread_mutex_lock(&openAccLock);
@@ -383,6 +389,7 @@ void * func(void* args) {
     		//if <accountname> input = acct_name 
             if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify a name for your account! * * *\n");
+                ret = sem_post(&sem);
                 continue;
             }
     		if(numAccounts == 0){
@@ -419,6 +426,7 @@ void * func(void* args) {
              // ret = sem_wait(&sem);
              if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME ACCOUNT * * *\n");
+                ret = sem_post(&sem);
                 continue;
             }
             // printf("will SERVE\n");
@@ -438,6 +446,7 @@ void * func(void* args) {
             // ret = sem_wait(&sem);
             if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
+                ret = sem_post(&sem);
                 continue;
             }
             if(isInSession(inSession, sockfd) == 1){
@@ -448,6 +457,7 @@ void * func(void* args) {
               // ret = sem_wait(&sem);
               if(strcmp(value, " ")==0||strcmp(value,"")==0){
                 writeToClient(sockfd, "* * * Error, you must specify SOME AMOUNT * * *\n");
+                ret = sem_post(&sem);
                 continue;
             }
              if(isInSession(inSession, sockfd) == 1){
@@ -477,6 +487,7 @@ void * func(void* args) {
             printf("Client with threadID [%lu] has disconnected\n", pthread_self());
             writeToClient(sockfd, "* * * Closing this client connection * * *\n");
             close(sockfd);
+            ret = sem_post(&sem);
             return;
     	    // break;
 	    } 
@@ -485,7 +496,7 @@ void * func(void* args) {
         memset(w_buff, 0, sizeof(w_buff));
         memset(command, 0, sizeof(command));
         memset(value, 0, sizeof(value));
-
+        ret = sem_post(&sem);
     }
 
 }
@@ -494,14 +505,13 @@ void * func(void* args) {
 void * printDiagnostics(void* args){
     
     while(1){
-
+        ret = sem_wait(&sem); 
         if(numAccounts==0){
             printf("There are no accounts in the system yet\n");
         }else {
             printBankAccounts();
-            sleep(5);
         }
-       ret = sem_post(&sem); 
+        ret = sem_post(&sem); 
         sleep(15);
         
     }
@@ -529,13 +539,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "ERROR: Server socket could not be created: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    printf("**Socket successfully created\n");
+    printf("** Socket successfully created\n");
     if(bind(servSockFD, result->ai_addr, result->ai_addrlen) < 0){
         printf("ERROR: Bind failed: %s\n", strerror(errno));
         exit(1);
     }
 
-    printf("**Socket successfully binded\n");
+    printf("** Socket successfully binded\n");
     int optval = 1;
     setsockopt(servSockFD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
     //setsockopt(servSockFD, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)); //based on his ex in class
@@ -546,14 +556,14 @@ int main(int argc, char *argv[]) {
 
     /* initialize a private semaphore */
     pshared = 0;
-    value = 0;
+    value = 1;
     ret = sem_init(&sem, pshared, value); 
 
 
     listen(servSockFD,10); // ten connections can be queued
    
 
-    printf("**Begin listening for connections\n");
+    printf("** Begin listening for connections\n");
     void* clientSocketThreadArg;
     pthread_t clientID;
     pthread_t printDiag;
@@ -593,7 +603,7 @@ int main(int argc, char *argv[]) {
 
         addClientNode(&clientInfoFront,node);  
         printf("**Accepted a connection and detached a thread, sockfd: [%lu]\n", clientSocketThreadArg);
-        printClientInfo();
+        // printClientInfo();
     }
 
 //------old stuff-----------
