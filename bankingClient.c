@@ -38,21 +38,24 @@ void * readFromServer(void* args){
 		status = read(networkSockFD, buff, sizeof(buff));
 		//buff[strlen(buff)-1]='\0';
 		
+
+    //buff[strlen(buff)-1]='\0';
+
+    
+
 		if(strcmp("CtrlC", buff) == 0){
-			printf("\nServer hit Ctrl C \n");
+			printf("\nServer hit CtrlC \n");
 			printf("** Closing connection Sig-handled!\n");
 			close(networkSockFD);
 			exit(1);
 			return 0;
 		}
 
-		buff[strlen(buff)-1]='\0';
-
 		if (status>0){
-			printf("\n%s\n", buff); 
-	   	memset(buff, 0, sizeof(buff));
-		}
-
+      printf("\n%s\n", buff); 
+     
+    }
+    memset(buff, 0, sizeof(buff));
 		
 	    if(exitClient==1){
         break;

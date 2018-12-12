@@ -44,7 +44,6 @@ int ret;
 int value;
 
 
-
 //create temp array of structs to hold accounts for that session
 //don't forget to free before disconnecting curr sessions
 //struct account *bankAccounts = (struct account *)malloc(sizeof(struct account));
@@ -153,15 +152,15 @@ void writeToClient(int sockfd, char* message){
     write(sockfd, w_buff, sizeof(w_buff));
 
 
-    struct sigaction sa;
-    sa.sa_handler = sigint_handler;
-    sa.sa_flags = 0;
-    sigemptyset(&sa.sa_mask);
+    // struct sigaction sa;
+    // sa.sa_handler = sigint_handler;
+    // sa.sa_flags = 0;
+    // sigemptyset(&sa.sa_mask);
 
-    if(sigaction(SIGINT, &sa, NULL) == -1){
-	   perror("Sigaction Error");
-	   exit(1);
-    }
+    // if(sigaction(SIGINT, &sa, NULL) == -1){
+	   // perror("Sigaction Error");
+	   // exit(1);
+    // }
 }
 
 int acctExists(char* acctName){
@@ -314,6 +313,7 @@ int end(int sockfd,  char* currAccount, int inSession){
     return 0;   
 }
 void sigint_handler(int sig) {
+    // printf("heyyyyy\n");
 	char buff[MAX];
 	bzero(buff, MAX);
 	strcpy(buff, "CtrlC");
@@ -366,7 +366,7 @@ void * func(void* args) {
 
         int blah;
         ret = sem_wait(&sem);
-        sem_getvalue(&sem, &blah);
+        // sem_getvalue(&sem, &blah);
         // printf("semval: %d\n", blah);
 
         // print buffer which contains the client contents
@@ -403,12 +403,14 @@ void * func(void* args) {
                 sprintf(w_buff,"* * * Account [%s] successfully added * * *\n", value);
                 write(sockfd, w_buff, sizeof(w_buff));
                 pthread_mutex_unlock(&openAccLock);
+                 ret = sem_post(&sem);
 		    } else {
                 if(alreadyExists(value) == 1) {
                     bzero(w_buff, MAX); 
                     strcpy(w_buff,"* * * Error, this account already exists! * * *\n");
                     write(sockfd, w_buff, sizeof(w_buff));
                     pthread_mutex_unlock(&openAccLock);
+                     ret = sem_post(&sem);
                     // printf("Error, this account already exists!\n");
                 } else {
                 	// printf("will create NEW account!!\n");
@@ -420,6 +422,7 @@ void * func(void* args) {
                     sprintf(w_buff,"* * * Account [%s] successfully added * * *\n", value);
                     write(sockfd, w_buff, sizeof(w_buff));
                     pthread_mutex_unlock(&openAccLock);
+                     ret = sem_post(&sem);
 		    	}
                 	
             }	     
@@ -443,6 +446,7 @@ void * func(void* args) {
                 }
                 
             }
+             ret = sem_post(&sem);
         } else if (strcmp("deposit", command) == 0){
             // ret = sem_wait(&sem);
             if(strcmp(value, " ")==0||strcmp(value,"")==0){
@@ -454,6 +458,7 @@ void * func(void* args) {
                 // printf("will DEPOSIT\n");
                 deposit(sockfd,  currAccount, inSession, value);
             }
+             ret = sem_post(&sem);
         } else if (strcmp("withdraw", command) == 0){
               // ret = sem_wait(&sem);
               if(strcmp(value, " ")==0||strcmp(value,"")==0){
@@ -465,18 +470,21 @@ void * func(void* args) {
                 // printf("will WITHDRAW\n");
                 withdraw(sockfd, currAccount, inSession, value);
             }
+             ret = sem_post(&sem);
         } else if (strcmp("query", command) == 0){
             // ret = sem_wait(&sem); 
             if(isInSession(inSession, sockfd) == 1){
                 // printf("will QUERY\n");
                 query(sockfd,  currAccount, inSession);
             }
+             ret = sem_post(&sem);
         } else if (strcmp("end", command) == 0){
             // ret = sem_wait(&sem);
             if(isInSession(inSession, sockfd) == 1){
                 inSession = end(sockfd, currAccount, inSession);
                 strcpy(currAccount, " ");
             }
+             ret = sem_post(&sem);
         } else if(strcmp("quit", command) == 0){
             // printf("will QUIT\n");
     	   //printf("client quit, so check if other clients there\n");
@@ -497,7 +505,7 @@ void * func(void* args) {
         memset(w_buff, 0, sizeof(w_buff));
         memset(command, 0, sizeof(command));
         memset(value, 0, sizeof(value));
-        ret = sem_post(&sem);
+       
     }
 
 }
@@ -567,6 +575,19 @@ int main(int argc, char *argv[]) {
     void* clientSocketThreadArg;
     pthread_t clientID;
     pthread_t printDiag;
+
+
+
+    struct sigaction sa;
+    sa.sa_handler = sigint_handler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+
+    if(sigaction(SIGINT, &sa, NULL) == -1){
+       perror("Sigaction Error");
+       exit(1);
+    }
+
 
 
     //thread to do all da diagnostic shiz
