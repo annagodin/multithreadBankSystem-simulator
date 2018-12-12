@@ -43,7 +43,7 @@ int pshared;
 int ret;
 int value;
 
-
+//Hi Anna! It's me, bankingServer. I'm alive.
 
 //create temp array of structs to hold accounts for that session
 //don't forget to free before disconnecting curr sessions
